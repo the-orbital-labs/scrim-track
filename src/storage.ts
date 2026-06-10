@@ -12,6 +12,7 @@ export type CurrentScrimbaPage = {
   isActive: boolean
   lastActiveAt: string | null
   lastInactiveAt: string | null
+  lastActivityAt: string | null
 } | null
 
 export type LearningSession = {

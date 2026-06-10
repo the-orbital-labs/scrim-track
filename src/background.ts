@@ -16,6 +16,7 @@ type TrackingStartedMessage = {
   title: string | null
   startedAt: string
   isActive: boolean
+  lastActivityAt: string
 }
 
 type ActivityPulseMessage = {
@@ -36,6 +37,30 @@ type TrackingStateChangedMessage = {
   changedAt: string
 }
 
+type UserActivityEventType =
+  | 'mousemove'
+  | 'click'
+  | 'keydown'
+  | 'scroll'
+  | 'touch'
+
+type UserActivityMessage = {
+  type: 'scrimba:user-activity'
+  sessionId: string
+  url: string
+  title: string | null
+  eventType: UserActivityEventType
+  activityAt: string
+}
+
+const userActivityEventTypes = new Set<UserActivityEventType>([
+  'mousemove',
+  'click',
+  'keydown',
+  'scroll',
+  'touch',
+])
+
 const isTrackingStartedMessage = (
   message: unknown,
 ): message is TrackingStartedMessage => {
@@ -52,7 +77,8 @@ const isTrackingStartedMessage = (
     isScrimbaUrl(candidate.url) &&
     (typeof candidate.title === 'string' || candidate.title === null) &&
     typeof candidate.startedAt === 'string' &&
-    typeof candidate.isActive === 'boolean'
+    typeof candidate.isActive === 'boolean' &&
+    typeof candidate.lastActivityAt === 'string'
   )
 }
 
@@ -98,6 +124,24 @@ const isTrackingStateChangedMessage = (
   )
 }
 
+const isUserActivityMessage = (message: unknown): message is UserActivityMessage => {
+  if (typeof message !== 'object' || message === null || !('type' in message)) {
+    return false
+  }
+
+  const candidate = message as Record<string, unknown>
+
+  return (
+    candidate.type === 'scrimba:user-activity' &&
+    typeof candidate.sessionId === 'string' &&
+    typeof candidate.url === 'string' &&
+    isScrimbaUrl(candidate.url) &&
+    (typeof candidate.title === 'string' || candidate.title === null) &&
+    userActivityEventTypes.has(candidate.eventType as UserActivityEventType) &&
+    typeof candidate.activityAt === 'string'
+  )
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   void Promise.all([
     updateStorageValue('extensionStatus', (extensionStatus) => ({
@@ -138,6 +182,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           isActive: message.isActive,
           lastActiveAt: message.isActive ? message.startedAt : null,
           lastInactiveAt: message.isActive ? null : message.startedAt,
+          lastActivityAt: message.lastActivityAt,
         }),
         startLearningSession({
           id: message.sessionId,
@@ -172,10 +217,42 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         lastInactiveAt: message.isActive
           ? (currentScrimbaPage?.lastInactiveAt ?? null)
           : message.changedAt,
+        lastActivityAt: currentScrimbaPage?.lastActivityAt ?? null,
       })).then(() => {
         sendResponse({
           ok: true,
           isActive: message.isActive,
+          trackingEnabled: true,
+        })
+      })
+    })
+
+    return true
+  }
+
+  if (isUserActivityMessage(message)) {
+    void getUserSettings().then((settings) => {
+      if (!settings.trackingEnabled) {
+        sendResponse({ ok: false, trackingEnabled: false })
+        return
+      }
+
+      void updateStorageValue('currentScrimbaPage', (currentScrimbaPage) => {
+        if (currentScrimbaPage?.sessionId !== message.sessionId) {
+          return currentScrimbaPage
+        }
+
+        return {
+          ...currentScrimbaPage,
+          url: message.url,
+          title: message.title,
+          lastActivityAt: message.activityAt,
+        }
+      }).then((currentScrimbaPage) => {
+        sendResponse({
+          ok: currentScrimbaPage?.sessionId === message.sessionId,
+          eventType: message.eventType,
+          lastActivityAt: currentScrimbaPage?.lastActivityAt ?? null,
           trackingEnabled: true,
         })
       })

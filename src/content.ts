@@ -19,10 +19,20 @@ const getPageTitle = (): string | null => {
   return title || null
 }
 
+type UserActivityEventType =
+  | 'mousemove'
+  | 'click'
+  | 'keydown'
+  | 'scroll'
+  | 'touch'
+
 if (isScrimbaUrl(window.location.href)) {
   const sessionId = createSessionId()
   const startedAt = new Date().toISOString()
+  const listenerController = new AbortController()
   let lastActiveAt = Date.now()
+  let lastActivityAt = Date.now()
+  let lastActivityMessageAt = 0
   let isTrackingActive =
     document.visibilityState === 'visible' && document.hasFocus()
 
@@ -44,6 +54,35 @@ if (isScrimbaUrl(window.location.href)) {
     )
   }
 
+  const sendUserActivity = (eventType: UserActivityEventType) => {
+    const now = Date.now()
+
+    lastActivityAt = now
+
+    if (
+      (eventType === 'mousemove' || eventType === 'scroll') &&
+      now - lastActivityMessageAt < 2_000
+    ) {
+      return
+    }
+
+    lastActivityMessageAt = now
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'scrimba:user-activity',
+        sessionId,
+        url: window.location.href,
+        title: getPageTitle(),
+        eventType,
+        activityAt: new Date(now).toISOString(),
+      },
+      () => {
+        void chrome.runtime.lastError
+      },
+    )
+  }
+
   chrome.runtime.sendMessage(
     {
       type: 'scrimba:tracking-started',
@@ -52,6 +91,7 @@ if (isScrimbaUrl(window.location.href)) {
       title: getPageTitle(),
       startedAt,
       isActive: isTrackingActive,
+      lastActivityAt: new Date(lastActivityAt).toISOString(),
     },
     () => {
       void chrome.runtime.lastError
@@ -102,6 +142,12 @@ if (isScrimbaUrl(window.location.href)) {
     sendTrackingState(false)
   }
 
+  const cleanup = () => {
+    pauseTracking()
+    window.clearInterval(activityPulseIntervalId)
+    listenerController.abort()
+  }
+
   const resumeTracking = () => {
     if (isTrackingActive || !isPageActive()) {
       return
@@ -121,11 +167,38 @@ if (isScrimbaUrl(window.location.href)) {
     pauseTracking()
   }
 
-  window.setInterval(sendActivityPulse, 15_000)
-  window.addEventListener('pagehide', pauseTracking)
-  window.addEventListener('focus', syncTrackingState)
+  const listenerOptions = { signal: listenerController.signal }
+  const passiveListenerOptions = {
+    passive: true,
+    signal: listenerController.signal,
+  }
+  const activityPulseIntervalId = window.setInterval(sendActivityPulse, 15_000)
+
+  window.addEventListener('pagehide', cleanup, listenerOptions)
+  window.addEventListener('focus', syncTrackingState, listenerOptions)
   window.addEventListener('blur', () => {
     window.setTimeout(syncTrackingState, 0)
-  })
-  document.addEventListener('visibilitychange', syncTrackingState)
+  }, listenerOptions)
+  document.addEventListener('visibilitychange', syncTrackingState, listenerOptions)
+  document.addEventListener(
+    'mousemove',
+    () => sendUserActivity('mousemove'),
+    passiveListenerOptions,
+  )
+  document.addEventListener('click', () => sendUserActivity('click'), listenerOptions)
+  document.addEventListener(
+    'keydown',
+    () => sendUserActivity('keydown'),
+    listenerOptions,
+  )
+  document.addEventListener(
+    'scroll',
+    () => sendUserActivity('scroll'),
+    passiveListenerOptions,
+  )
+  document.addEventListener(
+    'touchstart',
+    () => sendUserActivity('touch'),
+    passiveListenerOptions,
+  )
 }
