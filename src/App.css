@@ -105,7 +105,7 @@
   display: grid;
   gap: 18px;
   width: 340px;
-  min-height: 360px;
+  min-height: 560px;
   padding: 18px;
   background: var(--bg);
 }
@@ -149,7 +149,8 @@
 }
 
 .settings-panel input[type='number'],
-.settings-panel input[type='text'] {
+.settings-panel input[type='text'],
+.settings-panel select {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
@@ -160,7 +161,8 @@
   font: inherit;
 }
 
-.settings-panel input:focus-visible {
+.settings-panel input:focus-visible,
+.settings-panel select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
@@ -172,6 +174,12 @@
   gap: 8px;
   color: var(--muted);
   font-weight: 600;
+}
+
+.projection-line {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .primary-button {

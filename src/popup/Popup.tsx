@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react'
 import '../App.css'
 import {
+  getPathProgress,
+  saveAverageWindowDays,
+  savePathName,
+  saveProgressPercentage,
+  saveTotalEstimatedHours,
+} from '../pathProgress'
+import { getPathProjection } from '../projection'
+import {
   getUserSettings,
   saveDailyGoal,
   saveIdleTimeout,
   saveTimezone,
   saveTrackingEnabled,
 } from '../settings'
-import type { UserSettings } from '../storage'
+import type { AverageWindowDays, PathProgress, UserSettings } from '../storage'
 
 const openDashboard = () => {
   if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
@@ -22,32 +30,60 @@ const secondsToMinutes = (seconds: number): number => Math.round(seconds / 60)
 
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
+  const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
+  const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('5')
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   )
+  const [pathName, setPathName] = useState('')
+  const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
+  const [progressPercentage, setProgressPercentage] = useState('0')
+
+  const refreshProjection = () => {
+    void getPathProjection().then((projection) => {
+      setFinishDate(projection.finishDate)
+    })
+  }
 
   useEffect(() => {
     let isMounted = true
 
-    void getUserSettings().then((loadedSettings) => {
-      if (!isMounted) {
-        return
-      }
+    void Promise.all([getUserSettings(), getPathProgress(), getPathProjection()]).then(
+      ([loadedSettings, loadedPathProgress, projection]) => {
+        if (!isMounted) {
+          return
+        }
 
-      setSettings(loadedSettings)
-      setDailyGoalMinutes(String(secondsToMinutes(loadedSettings.dailyGoalSeconds)))
-      setIdleTimeoutMinutes(
-        String(secondsToMinutes(loadedSettings.idleTimeoutSeconds)),
-      )
-      setTimezone(loadedSettings.timezone)
-    })
+        setSettings(loadedSettings)
+        setPathProgress(loadedPathProgress)
+        setFinishDate(projection.finishDate)
+        setDailyGoalMinutes(
+          String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
+        )
+        setIdleTimeoutMinutes(
+          String(secondsToMinutes(loadedSettings.idleTimeoutSeconds)),
+        )
+        setTimezone(loadedSettings.timezone)
+        setPathName(loadedPathProgress.pathName)
+        setTotalEstimatedHours(String(loadedPathProgress.totalEstimatedHours))
+        setProgressPercentage(String(loadedPathProgress.progressPercentage))
+      },
+    )
 
     return () => {
       isMounted = false
     }
   }, [])
+
+  const syncPathProgress = (nextPathProgress: PathProgress) => {
+    setPathProgress(nextPathProgress)
+    setPathName(nextPathProgress.pathName)
+    setTotalEstimatedHours(String(nextPathProgress.totalEstimatedHours))
+    setProgressPercentage(String(nextPathProgress.progressPercentage))
+    refreshProjection()
+  }
 
   const saveGoal = () => {
     void saveDailyGoal(Number(dailyGoalMinutes) * 60).then(setSettings)
@@ -62,6 +98,22 @@ function Popup() {
       setSettings(nextSettings)
       setTimezone(nextSettings.timezone)
     })
+  }
+
+  const savePathNameValue = () => {
+    void savePathName(pathName).then(syncPathProgress)
+  }
+
+  const saveTotalEstimatedHoursValue = () => {
+    void saveTotalEstimatedHours(Number(totalEstimatedHours)).then(syncPathProgress)
+  }
+
+  const saveProgressPercentageValue = () => {
+    void saveProgressPercentage(Number(progressPercentage)).then(syncPathProgress)
+  }
+
+  const saveAverageWindowValue = (averageWindowDays: AverageWindowDays) => {
+    void saveAverageWindowDays(averageWindowDays).then(syncPathProgress)
   }
 
   const toggleTracking = () => {
@@ -129,6 +181,69 @@ function Popup() {
             onChange={(event) => setTimezone(event.target.value)}
           />
         </label>
+      </section>
+
+      <section className="settings-panel" aria-label="Path settings">
+        <label>
+          <span>Path name</span>
+          <input
+            type="text"
+            value={pathName}
+            onBlur={savePathNameValue}
+            onChange={(event) => setPathName(event.target.value)}
+          />
+        </label>
+
+        <label>
+          <span>Total estimate</span>
+          <div className="input-row">
+            <input
+              min="0.1"
+              step="0.5"
+              type="number"
+              value={totalEstimatedHours}
+              onBlur={saveTotalEstimatedHoursValue}
+              onChange={(event) => setTotalEstimatedHours(event.target.value)}
+            />
+            <span>hr</span>
+          </div>
+        </label>
+
+        <label>
+          <span>Progress</span>
+          <div className="input-row">
+            <input
+              max="100"
+              min="0"
+              step="1"
+              type="number"
+              value={progressPercentage}
+              onBlur={saveProgressPercentageValue}
+              onChange={(event) => setProgressPercentage(event.target.value)}
+            />
+            <span>%</span>
+          </div>
+        </label>
+
+        <label>
+          <span>Average window</span>
+          <select
+            value={pathProgress?.averageWindowDays ?? 7}
+            onChange={(event) => {
+              const value = event.target.value
+              saveAverageWindowValue(value === 'all' ? 'all' : Number(value) as 7 | 14 | 30)
+            }}
+          >
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+            <option value="all">All time</option>
+          </select>
+        </label>
+
+        <p className="projection-line">
+          {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
+        </p>
       </section>
 
       <button type="button" className="primary-button" onClick={openDashboard}>

@@ -34,11 +34,21 @@ export type UserSettings = {
   timezone: string
 }
 
+export type AverageWindowDays = 7 | 14 | 30 | 'all'
+
+export type PathProgress = {
+  pathName: string
+  totalEstimatedHours: number
+  progressPercentage: number
+  averageWindowDays: AverageWindowDays
+}
+
 export type StorageSchema = {
   extensionStatus: ExtensionStatus
   currentScrimbaPage: CurrentScrimbaPage
   dailyActivities: Record<string, DailyActivity>
   userSettings: UserSettings
+  pathProgress: PathProgress
 }
 
 export type StorageKey = keyof StorageSchema
@@ -56,6 +66,12 @@ const defaultStorageValues: StorageSchema = {
     idleTimeoutSeconds: 5 * 60,
     trackingEnabled: true,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  },
+  pathProgress: {
+    pathName: '',
+    totalEstimatedHours: 1,
+    progressPercentage: 0,
+    averageWindowDays: 7,
   },
 }
 

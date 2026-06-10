@@ -1,4 +1,5 @@
 import { addActiveSecondsToToday, startLearningSession } from './activity'
+import { ensurePathProgress } from './pathProgress'
 import { isScrimbaUrl } from './scrimbaUrl'
 import { ensureUserSettings, getUserSettings } from './settings'
 import { setStorageValue, updateStorageValue } from './storage'
@@ -74,6 +75,7 @@ chrome.runtime.onInstalled.addListener(() => {
       ...startupSnapshot(),
     })),
     ensureUserSettings(),
+    ensurePathProgress(),
   ])
 
   console.info('Scrimba Learning Tracker installed')
