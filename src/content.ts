@@ -1,13 +1,26 @@
-const scrimbaOrigins = new Set(['https://scrimba.com', 'https://v2.scrimba.com'])
+const scrimbaHosts = new Set(['scrimba.com', 'v2.scrimba.com'])
 
-if (scrimbaOrigins.has(window.location.origin)) {
+const isScrimbaUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value)
+
+    return url.protocol === 'https:' && scrimbaHosts.has(url.hostname)
+  } catch {
+    return false
+  }
+}
+
+if (isScrimbaUrl(window.location.href)) {
+  const title = document.title.trim()
+
   document.documentElement.dataset.scrimbaLearningTracker = 'active'
 
   chrome.runtime.sendMessage(
     {
-      type: 'scrimba:content-ready',
+      type: 'scrimba:tracking-started',
       url: window.location.href,
-      detectedAt: new Date().toISOString(),
+      title: title || null,
+      startedAt: new Date().toISOString(),
     },
     () => {
       void chrome.runtime.lastError
