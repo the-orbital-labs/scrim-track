@@ -10,9 +10,11 @@ export type CurrentScrimbaPage = {
   title: string | null
   startedAt: string
   isActive: boolean
+  isIdle: boolean
   lastActiveAt: string | null
   lastInactiveAt: string | null
   lastActivityAt: string | null
+  lastIdleAt: string | null
 } | null
 
 export type LearningSession = {
@@ -68,7 +70,7 @@ const defaultStorageValues: StorageSchema = {
   dailyActivities: {},
   userSettings: {
     dailyGoalSeconds: 30 * 60,
-    idleTimeoutSeconds: 5 * 60,
+    idleTimeoutSeconds: 2 * 60,
     trackingEnabled: true,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   },

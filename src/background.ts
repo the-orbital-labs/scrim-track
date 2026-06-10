@@ -61,6 +61,47 @@ const userActivityEventTypes = new Set<UserActivityEventType>([
   'touch',
 ])
 
+const getTime = (value: string): number => {
+  const time = new Date(value).getTime()
+
+  return Number.isFinite(time) ? time : 0
+}
+
+const getIdleAt = (lastActivityAt: string, idleTimeoutSeconds: number): string =>
+  new Date(getTime(lastActivityAt) + idleTimeoutSeconds * 1000).toISOString()
+
+const getCountableActiveSeconds = (
+  lastActivityAt: string | null,
+  recordedAt: string,
+  activeSeconds: number,
+  idleTimeoutSeconds: number,
+): number => {
+  if (!lastActivityAt) {
+    return activeSeconds
+  }
+
+  const recordedAtTime = getTime(recordedAt)
+  const pulseStartedAtTime = recordedAtTime - activeSeconds * 1000
+  const idleAtTime = getTime(getIdleAt(lastActivityAt, idleTimeoutSeconds))
+
+  return Math.max(
+    0,
+    Math.min(activeSeconds, Math.floor((idleAtTime - pulseStartedAtTime) / 1000)),
+  )
+}
+
+const isIdleAt = (
+  lastActivityAt: string | null,
+  recordedAt: string,
+  idleTimeoutSeconds: number,
+): boolean => {
+  if (!lastActivityAt) {
+    return false
+  }
+
+  return getTime(recordedAt) >= getTime(getIdleAt(lastActivityAt, idleTimeoutSeconds))
+}
+
 const isTrackingStartedMessage = (
   message: unknown,
 ): message is TrackingStartedMessage => {
@@ -180,9 +221,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           title: message.title,
           startedAt: message.startedAt,
           isActive: message.isActive,
+          isIdle: false,
           lastActiveAt: message.isActive ? message.startedAt : null,
           lastInactiveAt: message.isActive ? null : message.startedAt,
           lastActivityAt: message.lastActivityAt,
+          lastIdleAt: null,
         }),
         startLearningSession({
           id: message.sessionId,
@@ -211,6 +254,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         title: message.title,
         startedAt: currentScrimbaPage?.startedAt ?? message.changedAt,
         isActive: message.isActive,
+        isIdle: currentScrimbaPage?.isIdle ?? false,
         lastActiveAt: message.isActive
           ? message.changedAt
           : (currentScrimbaPage?.lastActiveAt ?? null),
@@ -218,6 +262,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ? (currentScrimbaPage?.lastInactiveAt ?? null)
           : message.changedAt,
         lastActivityAt: currentScrimbaPage?.lastActivityAt ?? null,
+        lastIdleAt: currentScrimbaPage?.lastIdleAt ?? null,
       })).then(() => {
         sendResponse({
           ok: true,
@@ -246,7 +291,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ...currentScrimbaPage,
           url: message.url,
           title: message.title,
+          isIdle: false,
+          lastActiveAt: currentScrimbaPage.isActive
+            ? message.activityAt
+            : currentScrimbaPage.lastActiveAt,
           lastActivityAt: message.activityAt,
+          lastIdleAt: null,
         }
       }).then((currentScrimbaPage) => {
         sendResponse({
@@ -271,24 +321,83 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       void getStorageValue('currentScrimbaPage').then((currentScrimbaPage) => {
         if (
           currentScrimbaPage?.sessionId !== message.sessionId ||
-          !currentScrimbaPage.isActive
+          !currentScrimbaPage.isActive ||
+          currentScrimbaPage.isIdle
         ) {
           sendResponse({
             ok: false,
             isActive: currentScrimbaPage?.isActive ?? false,
+            isIdle: currentScrimbaPage?.isIdle ?? false,
             trackingEnabled: true,
           })
           return
         }
 
+        const countableActiveSeconds = getCountableActiveSeconds(
+          currentScrimbaPage.lastActivityAt,
+          message.recordedAt,
+          message.activeSeconds,
+          settings.idleTimeoutSeconds,
+        )
+        const isNowIdle = isIdleAt(
+          currentScrimbaPage.lastActivityAt,
+          message.recordedAt,
+          settings.idleTimeoutSeconds,
+        )
+
+        if (countableActiveSeconds === 0 && isNowIdle) {
+          void updateStorageValue('currentScrimbaPage', (currentPage) => {
+            if (currentPage?.sessionId !== message.sessionId) {
+              return currentPage
+            }
+
+            return {
+              ...currentPage,
+              isIdle: true,
+              lastIdleAt: currentPage.lastActivityAt
+                ? getIdleAt(currentPage.lastActivityAt, settings.idleTimeoutSeconds)
+                : message.recordedAt,
+            }
+          }).then((currentPage) => {
+            sendResponse({
+              ok: false,
+              isActive: currentPage?.isActive ?? true,
+              isIdle: true,
+              trackingEnabled: true,
+            })
+          })
+          return
+        }
+
         void addActiveSecondsToToday({
-          activeSeconds: message.activeSeconds,
+          activeSeconds: countableActiveSeconds,
           recordedAt: message.recordedAt,
           sessionId: message.sessionId,
           url: message.url,
           title: message.title,
         }).then(() => {
-          sendResponse({ ok: true, isActive: true, trackingEnabled: true })
+          if (isNowIdle) {
+            void updateStorageValue('currentScrimbaPage', (currentPage) => {
+              if (currentPage?.sessionId !== message.sessionId) {
+                return currentPage
+              }
+
+              return {
+                ...currentPage,
+                isIdle: true,
+                lastIdleAt: currentPage.lastActivityAt
+                  ? getIdleAt(currentPage.lastActivityAt, settings.idleTimeoutSeconds)
+                  : message.recordedAt,
+              }
+            })
+          }
+
+          sendResponse({
+            ok: true,
+            isActive: true,
+            isIdle: isNowIdle,
+            trackingEnabled: true,
+          })
         })
       })
     })

@@ -33,7 +33,7 @@ function Popup() {
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
-  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('5')
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('2')
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   )
