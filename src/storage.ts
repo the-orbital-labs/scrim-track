@@ -5,9 +5,13 @@ export type ExtensionStatus = {
 }
 
 export type CurrentScrimbaPage = {
+  sessionId: string
   url: string
   title: string | null
   startedAt: string
+  isActive: boolean
+  lastActiveAt: string | null
+  lastInactiveAt: string | null
 } | null
 
 export type LearningSession = {

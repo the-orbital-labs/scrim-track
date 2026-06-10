@@ -21,9 +21,28 @@ const getPageTitle = (): string | null => {
 
 if (isScrimbaUrl(window.location.href)) {
   const sessionId = createSessionId()
+  const startedAt = new Date().toISOString()
   let lastActiveAt = Date.now()
+  let isTrackingActive =
+    document.visibilityState === 'visible' && document.hasFocus()
 
   document.documentElement.dataset.scrimbaLearningTracker = 'active'
+
+  const sendTrackingState = (isActive: boolean) => {
+    chrome.runtime.sendMessage(
+      {
+        type: 'scrimba:tracking-state-changed',
+        sessionId,
+        url: window.location.href,
+        title: getPageTitle(),
+        isActive,
+        changedAt: new Date().toISOString(),
+      },
+      () => {
+        void chrome.runtime.lastError
+      },
+    )
+  }
 
   chrome.runtime.sendMessage(
     {
@@ -31,7 +50,8 @@ if (isScrimbaUrl(window.location.href)) {
       sessionId,
       url: window.location.href,
       title: getPageTitle(),
-      startedAt: new Date().toISOString(),
+      startedAt,
+      isActive: isTrackingActive,
     },
     () => {
       void chrome.runtime.lastError
@@ -41,11 +61,12 @@ if (isScrimbaUrl(window.location.href)) {
   console.info('Scrimba Learning Tracker content script ready')
 
   const sendActivityPulse = () => {
+    if (!isTrackingActive) {
+      return
+    }
+
     const now = Date.now()
-    const activeSeconds =
-      document.visibilityState === 'visible'
-        ? Math.max(0, Math.floor((now - lastActiveAt) / 1000))
-        : 0
+    const activeSeconds = Math.max(0, Math.floor((now - lastActiveAt) / 1000))
 
     lastActiveAt = now
 
@@ -68,14 +89,43 @@ if (isScrimbaUrl(window.location.href)) {
     )
   }
 
-  window.setInterval(sendActivityPulse, 15_000)
-  window.addEventListener('pagehide', sendActivityPulse)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      sendActivityPulse()
+  const isPageActive = () =>
+    document.visibilityState === 'visible' && document.hasFocus()
+
+  const pauseTracking = () => {
+    if (!isTrackingActive) {
       return
     }
 
+    sendActivityPulse()
+    isTrackingActive = false
+    sendTrackingState(false)
+  }
+
+  const resumeTracking = () => {
+    if (isTrackingActive || !isPageActive()) {
+      return
+    }
+
+    isTrackingActive = true
     lastActiveAt = Date.now()
+    sendTrackingState(true)
+  }
+
+  const syncTrackingState = () => {
+    if (isPageActive()) {
+      resumeTracking()
+      return
+    }
+
+    pauseTracking()
+  }
+
+  window.setInterval(sendActivityPulse, 15_000)
+  window.addEventListener('pagehide', pauseTracking)
+  window.addEventListener('focus', syncTrackingState)
+  window.addEventListener('blur', () => {
+    window.setTimeout(syncTrackingState, 0)
   })
+  document.addEventListener('visibilitychange', syncTrackingState)
 }
