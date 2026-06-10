@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Scrimba Learning Tracker",
+  "description": "Track active learning time on Scrimba locally in your browser.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Scrimba Learning Tracker",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://scrimba.com/*", "https://v2.scrimba.com/*"],
+      "js": ["assets/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "dashboard.html",
+  "permissions": ["storage"]
+}
