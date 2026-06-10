@@ -27,10 +27,18 @@ export type DailyActivity = {
   sessions: LearningSession[]
 }
 
+export type UserSettings = {
+  dailyGoalSeconds: number
+  idleTimeoutSeconds: number
+  trackingEnabled: boolean
+  timezone: string
+}
+
 export type StorageSchema = {
   extensionStatus: ExtensionStatus
   currentScrimbaPage: CurrentScrimbaPage
   dailyActivities: Record<string, DailyActivity>
+  userSettings: UserSettings
 }
 
 export type StorageKey = keyof StorageSchema
@@ -43,6 +51,12 @@ const defaultStorageValues: StorageSchema = {
   },
   currentScrimbaPage: null,
   dailyActivities: {},
+  userSettings: {
+    dailyGoalSeconds: 30 * 60,
+    idleTimeoutSeconds: 5 * 60,
+    trackingEnabled: true,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  },
 }
 
 const cloneStorageValue = <Value>(value: Value): Value => {
@@ -56,6 +70,33 @@ const cloneStorageValue = <Value>(value: Value): Value => {
 const getDefaultStorageValue = <Key extends StorageKey>(
   key: Key,
 ): StorageSchema[Key] => cloneStorageValue(defaultStorageValues[key])
+
+const withDefaultStorageValue = <Key extends StorageKey>(
+  key: Key,
+  value: StorageSchema[Key] | undefined,
+): StorageSchema[Key] => {
+  const defaultValue = getDefaultStorageValue(key)
+
+  if (value === undefined) {
+    return defaultValue
+  }
+
+  if (
+    value !== null &&
+    defaultValue !== null &&
+    typeof value === 'object' &&
+    typeof defaultValue === 'object' &&
+    !Array.isArray(value) &&
+    !Array.isArray(defaultValue)
+  ) {
+    return {
+      ...defaultValue,
+      ...value,
+    }
+  }
+
+  return value
+}
 
 const logStorageError = (operation: string): boolean => {
   const error = chrome.runtime.lastError
@@ -82,7 +123,7 @@ export const getStorageValue = <Key extends StorageKey>(
 
         const value = items[key] as StorageSchema[Key] | undefined
 
-        resolve(value === undefined ? getDefaultStorageValue(key) : value)
+        resolve(withDefaultStorageValue(key, value))
       })
     } catch (error) {
       console.warn(`Storage read for ${key} failed:`, error)

@@ -104,8 +104,8 @@
   box-sizing: border-box;
   display: grid;
   gap: 18px;
-  width: 320px;
-  min-height: 220px;
+  width: 340px;
+  min-height: 360px;
   padding: 18px;
   background: var(--bg);
 }
@@ -117,6 +117,61 @@
 
 .muted {
   color: var(--muted);
+}
+
+.settings-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.settings-panel label,
+.toggle-row {
+  display: grid;
+  gap: 6px;
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.toggle-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.settings-panel input[type='number'],
+.settings-panel input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text-h);
+  background: var(--bg);
+  font: inherit;
+}
+
+.settings-panel input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .primary-button {

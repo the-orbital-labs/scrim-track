@@ -1,5 +1,6 @@
 import { addActiveSecondsToToday, startLearningSession } from './activity'
 import { isScrimbaUrl } from './scrimbaUrl'
+import { ensureUserSettings, getUserSettings } from './settings'
 import { setStorageValue, updateStorageValue } from './storage'
 
 const startupSnapshot = () => ({
@@ -66,11 +67,14 @@ const isActivityPulseMessage = (
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  void updateStorageValue('extensionStatus', (extensionStatus) => ({
-    ...extensionStatus,
-    installedAt: new Date().toISOString(),
-    ...startupSnapshot(),
-  }))
+  void Promise.all([
+    updateStorageValue('extensionStatus', (extensionStatus) => ({
+      ...extensionStatus,
+      installedAt: new Date().toISOString(),
+      ...startupSnapshot(),
+    })),
+    ensureUserSettings(),
+  ])
 
   console.info('Scrimba Learning Tracker installed')
 })
@@ -86,34 +90,48 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (isTrackingStartedMessage(message)) {
-    void Promise.all([
-      setStorageValue('currentScrimbaPage', {
-        url: message.url,
-        title: message.title,
-        startedAt: message.startedAt,
-      }),
-      startLearningSession({
-        id: message.sessionId,
-        url: message.url,
-        title: message.title,
-        startedAt: message.startedAt,
-      }),
-    ]).then(([ok]) => {
-      sendResponse({ ok })
+    void getUserSettings().then((settings) => {
+      if (!settings.trackingEnabled) {
+        sendResponse({ ok: false, trackingEnabled: false })
+        return
+      }
+
+      void Promise.all([
+        setStorageValue('currentScrimbaPage', {
+          url: message.url,
+          title: message.title,
+          startedAt: message.startedAt,
+        }),
+        startLearningSession({
+          id: message.sessionId,
+          url: message.url,
+          title: message.title,
+          startedAt: message.startedAt,
+        }),
+      ]).then(([ok]) => {
+        sendResponse({ ok, trackingEnabled: true })
+      })
     })
 
     return true
   }
 
   if (isActivityPulseMessage(message)) {
-    void addActiveSecondsToToday({
-      activeSeconds: message.activeSeconds,
-      recordedAt: message.recordedAt,
-      sessionId: message.sessionId,
-      url: message.url,
-      title: message.title,
-    }).then(() => {
-      sendResponse({ ok: true })
+    void getUserSettings().then((settings) => {
+      if (!settings.trackingEnabled) {
+        sendResponse({ ok: false, trackingEnabled: false })
+        return
+      }
+
+      void addActiveSecondsToToday({
+        activeSeconds: message.activeSeconds,
+        recordedAt: message.recordedAt,
+        sessionId: message.sessionId,
+        url: message.url,
+        title: message.title,
+      }).then(() => {
+        sendResponse({ ok: true, trackingEnabled: true })
+      })
     })
 
     return true

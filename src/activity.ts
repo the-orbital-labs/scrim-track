@@ -1,3 +1,4 @@
+import { getUserSettings } from './settings'
 import { getStorageValue, updateStorageValue } from './storage'
 import type { DailyActivity, LearningSession } from './storage'
 
@@ -32,10 +33,13 @@ const parseLocalDateKey = (dateKey: string): Date => {
   return new Date(year, month - 1, day)
 }
 
-export const createDailyActivity = (date: string): DailyActivity => ({
+export const createDailyActivity = (
+  date: string,
+  goalSeconds = 0,
+): DailyActivity => ({
   date,
   activeSeconds: 0,
-  goalSeconds: 0,
+  goalSeconds,
   goalCompleted: false,
   sessions: [],
 })
@@ -43,7 +47,8 @@ export const createDailyActivity = (date: string): DailyActivity => ({
 const getOrCreateActivity = (
   activities: Record<string, DailyActivity>,
   date: string,
-): DailyActivity => activities[date] ?? createDailyActivity(date)
+  goalSeconds = 0,
+): DailyActivity => activities[date] ?? createDailyActivity(date, goalSeconds)
 
 const normalizeActiveSeconds = (activeSeconds: number): number =>
   Math.max(0, Math.floor(activeSeconds))
@@ -56,9 +61,10 @@ const withGoalCompletion = (activity: DailyActivity): DailyActivity => ({
 
 export const ensureTodayActivity = async (): Promise<DailyActivity> => {
   const today = getLocalDateKey()
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await updateStorageValue('dailyActivities', (current) => ({
     ...current,
-    [today]: getOrCreateActivity(current, today),
+    [today]: getOrCreateActivity(current, today, dailyGoalSeconds),
   }))
 
   return activities[today]
@@ -68,8 +74,9 @@ export const startLearningSession = async (
   session: StartLearningSessionInput,
 ): Promise<DailyActivity> => {
   const date = getLocalDateKey(session.startedAt)
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await updateStorageValue('dailyActivities', (current) => {
-    const activity = getOrCreateActivity(current, date)
+    const activity = getOrCreateActivity(current, date, dailyGoalSeconds)
 
     if (activity.sessions.some(({ id }) => id === session.id)) {
       return current
@@ -103,8 +110,9 @@ export const addActiveSecondsToToday = async ({
 }: AddActiveSecondsInput): Promise<DailyActivity> => {
   const seconds = normalizeActiveSeconds(activeSeconds)
   const date = getLocalDateKey(recordedAt)
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await updateStorageValue('dailyActivities', (current) => {
-    const activity = getOrCreateActivity(current, date)
+    const activity = getOrCreateActivity(current, date, dailyGoalSeconds)
     const nextActivity = withGoalCompletion({
       ...activity,
       activeSeconds: activity.activeSeconds + seconds,
@@ -136,9 +144,10 @@ export const getActivityForDate = async (
   date: string | Date,
 ): Promise<DailyActivity> => {
   const dateKey = typeof date === 'string' ? date : getLocalDateKey(date)
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await getStorageValue('dailyActivities')
 
-  return getOrCreateActivity(activities, dateKey)
+  return getOrCreateActivity(activities, dateKey, dailyGoalSeconds)
 }
 
 export const getActivityForDateRange = async (
@@ -150,6 +159,7 @@ export const getActivityForDateRange = async (
   const endKey = typeof endDate === 'string' ? endDate : getLocalDateKey(endDate)
   const start = parseLocalDateKey(startKey)
   const end = parseLocalDateKey(endKey)
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await getStorageValue('dailyActivities')
   const results: DailyActivity[] = []
 
@@ -160,7 +170,7 @@ export const getActivityForDateRange = async (
   ) {
     const dateKey = getLocalDateKey(cursor)
 
-    results.push(getOrCreateActivity(activities, dateKey))
+    results.push(getOrCreateActivity(activities, dateKey, dailyGoalSeconds))
   }
 
   return results
@@ -170,8 +180,9 @@ export const updateGoalCompletionStatus = async (
   date: string | Date = new Date(),
 ): Promise<DailyActivity> => {
   const dateKey = typeof date === 'string' ? date : getLocalDateKey(date)
+  const { dailyGoalSeconds } = await getUserSettings()
   const activities = await updateStorageValue('dailyActivities', (current) => {
-    const activity = getOrCreateActivity(current, dateKey)
+    const activity = getOrCreateActivity(current, dateKey, dailyGoalSeconds)
 
     return {
       ...current,
