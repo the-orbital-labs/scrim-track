@@ -1,3 +1,4 @@
+import { addActiveSecondsToToday, startLearningSession } from './activity'
 import { isScrimbaUrl } from './scrimbaUrl'
 import { setStorageValue, updateStorageValue } from './storage'
 
@@ -8,9 +9,19 @@ const startupSnapshot = () => ({
 
 type TrackingStartedMessage = {
   type: 'scrimba:tracking-started'
+  sessionId: string
   url: string
   title: string | null
   startedAt: string
+}
+
+type ActivityPulseMessage = {
+  type: 'scrimba:activity-pulse'
+  sessionId: string
+  url: string
+  title: string | null
+  activeSeconds: number
+  recordedAt: string
 }
 
 const isTrackingStartedMessage = (
@@ -24,10 +35,33 @@ const isTrackingStartedMessage = (
 
   return (
     candidate.type === 'scrimba:tracking-started' &&
+    typeof candidate.sessionId === 'string' &&
     typeof candidate.url === 'string' &&
     isScrimbaUrl(candidate.url) &&
     (typeof candidate.title === 'string' || candidate.title === null) &&
     typeof candidate.startedAt === 'string'
+  )
+}
+
+const isActivityPulseMessage = (
+  message: unknown,
+): message is ActivityPulseMessage => {
+  if (typeof message !== 'object' || message === null || !('type' in message)) {
+    return false
+  }
+
+  const candidate = message as Record<string, unknown>
+
+  return (
+    candidate.type === 'scrimba:activity-pulse' &&
+    typeof candidate.sessionId === 'string' &&
+    typeof candidate.url === 'string' &&
+    isScrimbaUrl(candidate.url) &&
+    (typeof candidate.title === 'string' || candidate.title === null) &&
+    typeof candidate.activeSeconds === 'number' &&
+    Number.isFinite(candidate.activeSeconds) &&
+    candidate.activeSeconds > 0 &&
+    typeof candidate.recordedAt === 'string'
   )
 }
 
@@ -52,12 +86,34 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (isTrackingStartedMessage(message)) {
-    void setStorageValue('currentScrimbaPage', {
+    void Promise.all([
+      setStorageValue('currentScrimbaPage', {
+        url: message.url,
+        title: message.title,
+        startedAt: message.startedAt,
+      }),
+      startLearningSession({
+        id: message.sessionId,
+        url: message.url,
+        title: message.title,
+        startedAt: message.startedAt,
+      }),
+    ]).then(([ok]) => {
+      sendResponse({ ok })
+    })
+
+    return true
+  }
+
+  if (isActivityPulseMessage(message)) {
+    void addActiveSecondsToToday({
+      activeSeconds: message.activeSeconds,
+      recordedAt: message.recordedAt,
+      sessionId: message.sessionId,
       url: message.url,
       title: message.title,
-      startedAt: message.startedAt,
-    }).then((ok) => {
-      sendResponse({ ok })
+    }).then(() => {
+      sendResponse({ ok: true })
     })
 
     return true

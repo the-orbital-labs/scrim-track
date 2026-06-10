@@ -10,9 +10,27 @@ export type CurrentScrimbaPage = {
   startedAt: string
 } | null
 
+export type LearningSession = {
+  id: string
+  url: string
+  title: string | null
+  startedAt: string
+  endedAt: string | null
+  activeSeconds: number
+}
+
+export type DailyActivity = {
+  date: string
+  activeSeconds: number
+  goalSeconds: number
+  goalCompleted: boolean
+  sessions: LearningSession[]
+}
+
 export type StorageSchema = {
   extensionStatus: ExtensionStatus
   currentScrimbaPage: CurrentScrimbaPage
+  dailyActivities: Record<string, DailyActivity>
 }
 
 export type StorageKey = keyof StorageSchema
@@ -24,6 +42,7 @@ const defaultStorageValues: StorageSchema = {
     version: null,
   },
   currentScrimbaPage: null,
+  dailyActivities: {},
 }
 
 const cloneStorageValue = <Value>(value: Value): Value => {
