@@ -18,7 +18,10 @@ declare const chrome: {
         ) => void | boolean,
       ) => void
     }
-    sendMessage: (message: unknown, responseCallback?: () => void) => void
+    sendMessage: (
+      message: unknown,
+      responseCallback?: (response?: unknown) => void,
+    ) => void
   }
   storage: {
     local: {

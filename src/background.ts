@@ -139,8 +139,7 @@ const isActivityPulseMessage = (
     isScrimbaUrl(candidate.url) &&
     (typeof candidate.title === 'string' || candidate.title === null) &&
     typeof candidate.activeSeconds === 'number' &&
-    Number.isFinite(candidate.activeSeconds) &&
-    candidate.activeSeconds > 0 &&
+    candidate.activeSeconds === 5 &&
     typeof candidate.recordedAt === 'string'
   )
 }
@@ -248,25 +247,39 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return
       }
 
-      void updateStorageValue('currentScrimbaPage', (currentScrimbaPage) => ({
-        sessionId: message.sessionId,
-        url: message.url,
-        title: message.title,
-        startedAt: currentScrimbaPage?.startedAt ?? message.changedAt,
-        isActive: message.isActive,
-        isIdle: currentScrimbaPage?.isIdle ?? false,
-        lastActiveAt: message.isActive
-          ? message.changedAt
-          : (currentScrimbaPage?.lastActiveAt ?? null),
-        lastInactiveAt: message.isActive
-          ? (currentScrimbaPage?.lastInactiveAt ?? null)
-          : message.changedAt,
-        lastActivityAt: currentScrimbaPage?.lastActivityAt ?? null,
-        lastIdleAt: currentScrimbaPage?.lastIdleAt ?? null,
-      })).then(() => {
-        sendResponse({
-          ok: true,
+      void updateStorageValue('currentScrimbaPage', (currentScrimbaPage) => {
+        const isCurrentSession =
+          currentScrimbaPage?.sessionId === message.sessionId
+
+        if (!message.isActive && !isCurrentSession) {
+          return currentScrimbaPage
+        }
+
+        return {
+          sessionId: message.sessionId,
+          url: message.url,
+          title: message.title,
+          startedAt:
+            isCurrentSession && currentScrimbaPage
+              ? currentScrimbaPage.startedAt
+              : message.changedAt,
           isActive: message.isActive,
+          isIdle: isCurrentSession ? currentScrimbaPage.isIdle : false,
+          lastActiveAt: message.isActive
+            ? message.changedAt
+            : (currentScrimbaPage?.lastActiveAt ?? null),
+          lastInactiveAt: message.isActive
+            ? (isCurrentSession ? currentScrimbaPage.lastInactiveAt : null)
+            : message.changedAt,
+          lastActivityAt: isCurrentSession
+            ? currentScrimbaPage.lastActivityAt
+            : message.changedAt,
+          lastIdleAt: isCurrentSession ? currentScrimbaPage.lastIdleAt : null,
+        }
+      }).then((currentScrimbaPage) => {
+        sendResponse({
+          ok: currentScrimbaPage?.sessionId === message.sessionId,
+          isActive: currentScrimbaPage?.isActive ?? false,
           trackingEnabled: true,
         })
       })

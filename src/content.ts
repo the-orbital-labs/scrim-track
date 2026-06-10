@@ -26,13 +26,26 @@ type UserActivityEventType =
   | 'scroll'
   | 'touch'
 
-if (isScrimbaUrl(window.location.href)) {
+type RuntimeResponse = {
+  isIdle?: boolean
+  ok?: boolean
+  trackingEnabled?: boolean
+}
+
+const isRuntimeResponse = (response: unknown): response is RuntimeResponse =>
+  typeof response === 'object' && response !== null
+
+if (
+  isScrimbaUrl(window.location.href) &&
+  document.documentElement.dataset.scrimbaLearningTracker !== 'active'
+) {
   const sessionId = createSessionId()
   const startedAt = new Date().toISOString()
   const listenerController = new AbortController()
-  let lastActiveAt = Date.now()
   let lastActivityAt = Date.now()
   let lastActivityMessageAt = 0
+  let trackingTickIntervalId: number | null = null
+  let isTrackingIdle = false
   let isTrackingActive =
     document.visibilityState === 'visible' && document.hasFocus()
 
@@ -54,10 +67,58 @@ if (isScrimbaUrl(window.location.href)) {
     )
   }
 
+  const stopTrackingTick = () => {
+    if (trackingTickIntervalId === null) {
+      return
+    }
+
+    window.clearInterval(trackingTickIntervalId)
+    trackingTickIntervalId = null
+  }
+
+  const handleTickResponse = (response: unknown) => {
+    if (!isRuntimeResponse(response)) {
+      return
+    }
+
+    if (response.trackingEnabled === false || response.isIdle === true) {
+      isTrackingIdle = response.isIdle === true
+      stopTrackingTick()
+    }
+  }
+
+  const sendTrackingTick = () => {
+    if (!isTrackingActive || isTrackingIdle) {
+      stopTrackingTick()
+      return
+    }
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'scrimba:activity-pulse',
+        sessionId,
+        url: window.location.href,
+        title: getPageTitle(),
+        activeSeconds: 5,
+        recordedAt: new Date().toISOString(),
+      },
+      handleTickResponse,
+    )
+  }
+
+  const startTrackingTick = () => {
+    if (!isTrackingActive || isTrackingIdle || trackingTickIntervalId !== null) {
+      return
+    }
+
+    trackingTickIntervalId = window.setInterval(sendTrackingTick, 5_000)
+  }
+
   const sendUserActivity = (eventType: UserActivityEventType) => {
     const now = Date.now()
 
     lastActivityAt = now
+    isTrackingIdle = false
 
     if (
       (eventType === 'mousemove' || eventType === 'scroll') &&
@@ -77,8 +138,12 @@ if (isScrimbaUrl(window.location.href)) {
         eventType,
         activityAt: new Date(now).toISOString(),
       },
-      () => {
+      (response) => {
         void chrome.runtime.lastError
+
+        if (isRuntimeResponse(response) && response.ok && isPageActive()) {
+          startTrackingTick()
+        }
       },
     )
   }
@@ -93,41 +158,16 @@ if (isScrimbaUrl(window.location.href)) {
       isActive: isTrackingActive,
       lastActivityAt: new Date(lastActivityAt).toISOString(),
     },
-    () => {
+    (response) => {
       void chrome.runtime.lastError
+
+      if (isRuntimeResponse(response) && response.ok) {
+        startTrackingTick()
+      }
     },
   )
 
   console.info('Scrimba Learning Tracker content script ready')
-
-  const sendActivityPulse = () => {
-    if (!isTrackingActive) {
-      return
-    }
-
-    const now = Date.now()
-    const activeSeconds = Math.max(0, Math.floor((now - lastActiveAt) / 1000))
-
-    lastActiveAt = now
-
-    if (activeSeconds === 0) {
-      return
-    }
-
-    chrome.runtime.sendMessage(
-      {
-        type: 'scrimba:activity-pulse',
-        sessionId,
-        url: window.location.href,
-        title: getPageTitle(),
-        activeSeconds,
-        recordedAt: new Date().toISOString(),
-      },
-      () => {
-        void chrome.runtime.lastError
-      },
-    )
-  }
 
   const isPageActive = () =>
     document.visibilityState === 'visible' && document.hasFocus()
@@ -137,14 +177,14 @@ if (isScrimbaUrl(window.location.href)) {
       return
     }
 
-    sendActivityPulse()
     isTrackingActive = false
+    stopTrackingTick()
     sendTrackingState(false)
   }
 
   const cleanup = () => {
     pauseTracking()
-    window.clearInterval(activityPulseIntervalId)
+    stopTrackingTick()
     listenerController.abort()
   }
 
@@ -154,8 +194,8 @@ if (isScrimbaUrl(window.location.href)) {
     }
 
     isTrackingActive = true
-    lastActiveAt = Date.now()
     sendTrackingState(true)
+    startTrackingTick()
   }
 
   const syncTrackingState = () => {
@@ -172,7 +212,6 @@ if (isScrimbaUrl(window.location.href)) {
     passive: true,
     signal: listenerController.signal,
   }
-  const activityPulseIntervalId = window.setInterval(sendActivityPulse, 15_000)
 
   window.addEventListener('pagehide', cleanup, listenerOptions)
   window.addEventListener('focus', syncTrackingState, listenerOptions)
