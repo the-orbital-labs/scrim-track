@@ -34,6 +34,12 @@ export type DailyActivity = {
   sessions: LearningSession[]
 }
 
+export type StreakStatus = {
+  currentStreak: number
+  longestStreak: number
+  lastCalculatedAt: string | null
+}
+
 export type UserSettings = {
   dailyGoalSeconds: number
   idleTimeoutSeconds: number
@@ -54,6 +60,7 @@ export type StorageSchema = {
   extensionStatus: ExtensionStatus
   currentScrimbaPage: CurrentScrimbaPage
   dailyActivities: Record<string, DailyActivity>
+  streakStatus: StreakStatus
   userSettings: UserSettings
   pathProgress: PathProgress
 }
@@ -68,6 +75,11 @@ const defaultStorageValues: StorageSchema = {
   },
   currentScrimbaPage: null,
   dailyActivities: {},
+  streakStatus: {
+    currentStreak: 0,
+    longestStreak: 0,
+    lastCalculatedAt: null,
+  },
   userSettings: {
     dailyGoalSeconds: 30 * 60,
     idleTimeoutSeconds: 2 * 60,

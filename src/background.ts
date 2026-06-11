@@ -1,4 +1,4 @@
-import { addActiveSecondsToToday, startLearningSession } from './activity'
+import { addActiveSecondsForInterval, startLearningSession } from './activity'
 import { ensurePathProgress } from './pathProgress'
 import { isScrimbaUrl } from './scrimbaUrl'
 import { ensureUserSettings, getUserSettings } from './settings'
@@ -88,6 +88,19 @@ const getCountableActiveSeconds = (
     0,
     Math.min(activeSeconds, Math.floor((idleAtTime - pulseStartedAtTime) / 1000)),
   )
+}
+
+const getCountableEndedAt = (
+  recordedAt: string,
+  activeSeconds: number,
+  countableActiveSeconds: number,
+): string => {
+  const recordedAtTime = getTime(recordedAt)
+  const pulseStartedAtTime = recordedAtTime - activeSeconds * 1000
+
+  return new Date(
+    pulseStartedAtTime + countableActiveSeconds * 1000,
+  ).toISOString()
 }
 
 const isIdleAt = (
@@ -382,9 +395,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           return
         }
 
-        void addActiveSecondsToToday({
+        void addActiveSecondsForInterval({
           activeSeconds: countableActiveSeconds,
-          recordedAt: message.recordedAt,
+          endedAt: getCountableEndedAt(
+            message.recordedAt,
+            message.activeSeconds,
+            countableActiveSeconds,
+          ),
           sessionId: message.sessionId,
           url: message.url,
           title: message.title,
