@@ -13,6 +13,8 @@ const isScrimbaUrl = (value: string): boolean => {
 const createSessionId = (): string =>
   `scrimba-${Date.now()}-${Math.random().toString(36).slice(2)}`
 
+const sessionResumeGraceMs = 60_000
+
 const getPageTitle = (): string | null => {
   const title = document.title.trim()
 
@@ -41,6 +43,14 @@ if (
 ) {
   const listenerController = new AbortController()
   let currentSessionId: string | null = null
+  let currentSessionStartedAt: string | null = null
+  let pausedSession:
+    | {
+        id: string
+        startedAt: string
+        stoppedAt: number
+      }
+    | null = null
   let lastActivityAt = Date.now()
   let lastActivityMessageAt = 0
   let lastAccountedAt = 0
@@ -78,6 +88,8 @@ if (
     isTrackingActive = false
     isTrackingIdle = true
     currentSessionId = null
+    currentSessionStartedAt = null
+    pausedSession = null
     lastAccountedAt = 0
     stopTrackingTick()
   }
@@ -135,9 +147,16 @@ if (
     }
 
     const now = Date.now()
-    const sessionId = createSessionId()
+    const reusableSession =
+      pausedSession && now - pausedSession.stoppedAt <= sessionResumeGraceMs
+        ? pausedSession
+        : null
+    const startedAt = reusableSession?.startedAt ?? new Date(now).toISOString()
+    const sessionId = reusableSession?.id ?? createSessionId()
 
     currentSessionId = sessionId
+    currentSessionStartedAt = startedAt
+    pausedSession = null
     lastActivityAt = now
     lastAccountedAt = now
     isTrackingActive = true
@@ -149,7 +168,7 @@ if (
         sessionId,
         url: window.location.href,
         title: getPageTitle(),
-        startedAt: new Date(now).toISOString(),
+        startedAt,
         isActive: true,
         lastActivityAt: new Date(lastActivityAt).toISOString(),
       },
@@ -170,21 +189,32 @@ if (
     )
   }
 
-  const stopActiveSession = () => {
+  const stopActiveSession = (rememberForGrace = true) => {
     if (!currentSessionId) {
       return
     }
 
     const stoppedAt = Date.now()
     const sessionId = currentSessionId
+    const startedAt = currentSessionStartedAt
     const activeSeconds =
       isTrackingActive && !isTrackingIdle ? getUnsentActiveSeconds(stoppedAt) : 0
 
     currentSessionId = null
+    currentSessionStartedAt = null
     isTrackingActive = false
     isTrackingIdle = false
     lastAccountedAt = 0
     stopTrackingTick()
+
+    pausedSession =
+      rememberForGrace && startedAt
+        ? {
+            id: sessionId,
+            startedAt,
+            stoppedAt,
+          }
+        : null
 
     chrome.runtime.sendMessage(
       {
@@ -249,7 +279,7 @@ if (
   console.info('Scrimba Learning Tracker content script ready')
 
   const cleanup = () => {
-    stopActiveSession()
+    stopActiveSession(false)
     listenerController.abort()
   }
 

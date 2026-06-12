@@ -286,7 +286,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             title: message.title,
             startedAt: message.startedAt,
             isActive: true,
-          }),
+          }).then(() => setLearningSessionActiveState(message.sessionId, true)),
         )
       }
 
