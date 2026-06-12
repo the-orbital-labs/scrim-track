@@ -22,6 +22,7 @@ export type LearningSession = {
   url: string
   title: string | null
   startedAt: string
+  isActive: boolean
   endedAt: string | null
   activeSeconds: number
 }

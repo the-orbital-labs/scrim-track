@@ -1,4 +1,8 @@
-import { addActiveSecondsForInterval, startLearningSession } from './activity'
+import {
+  addActiveSecondsForInterval,
+  setLearningSessionActiveState,
+  startLearningSession,
+} from './activity'
 import { ensurePathProgress } from './pathProgress'
 import { isScrimbaUrl } from './scrimbaUrl'
 import { ensureUserSettings, getUserSettings } from './settings'
@@ -226,7 +230,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return
       }
 
-      void Promise.all([
+      const writes: Promise<unknown>[] = [
         setStorageValue('currentScrimbaPage', {
           sessionId: message.sessionId,
           url: message.url,
@@ -239,13 +243,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           lastActivityAt: message.lastActivityAt,
           lastIdleAt: null,
         }),
-        startLearningSession({
-          id: message.sessionId,
-          url: message.url,
-          title: message.title,
-          startedAt: message.startedAt,
-        }),
-      ]).then(([ok]) => {
+      ]
+
+      if (message.isActive) {
+        writes.push(
+          startLearningSession({
+            id: message.sessionId,
+            url: message.url,
+            title: message.title,
+            startedAt: message.startedAt,
+            isActive: true,
+          }),
+        )
+      }
+
+      void Promise.all(writes).then(([ok]) => {
         sendResponse({ ok, trackingEnabled: true })
       })
     })
@@ -290,10 +302,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           lastIdleAt: isCurrentSession ? currentScrimbaPage.lastIdleAt : null,
         }
       }).then((currentScrimbaPage) => {
-        sendResponse({
-          ok: currentScrimbaPage?.sessionId === message.sessionId,
-          isActive: currentScrimbaPage?.isActive ?? false,
-          trackingEnabled: true,
+        const isCurrentSession =
+          currentScrimbaPage?.sessionId === message.sessionId
+        const sessionUpdate = message.isActive
+          ? startLearningSession({
+              id: message.sessionId,
+              url: message.url,
+              title: message.title,
+              startedAt: message.changedAt,
+              isActive: true,
+            }).then(() => setLearningSessionActiveState(message.sessionId, true))
+          : setLearningSessionActiveState(message.sessionId, false)
+
+        void sessionUpdate.then(() => {
+          sendResponse({
+            ok: isCurrentSession,
+            isActive: currentScrimbaPage?.isActive ?? false,
+            trackingEnabled: true,
+          })
         })
       })
     })

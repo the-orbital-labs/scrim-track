@@ -130,6 +130,7 @@ const withUpdatedSession = (
           url: url ?? '',
           title: title ?? null,
           startedAt: segment.startedAt,
+          isActive: true,
           endedAt: segment.endedAt,
           activeSeconds: segment.activeSeconds,
         },
@@ -145,6 +146,7 @@ const withUpdatedSession = (
             ...session,
             url: url ?? session.url,
             title: title ?? session.title,
+            isActive: true,
             endedAt: segment.endedAt,
             activeSeconds: session.activeSeconds + segment.activeSeconds,
           }
@@ -254,6 +256,38 @@ export const startLearningSession = async (
   await setStorageValue('streakStatus', streakStatus)
 
   return activities[date]
+}
+
+export const setLearningSessionActiveState = async (
+  sessionId: string,
+  isActive: boolean,
+): Promise<boolean> => {
+  let didUpdate = false
+
+  await updateStorageValue('dailyActivities', (current) => {
+    let nextActivities = current
+
+    for (const [date, activity] of Object.entries(current)) {
+      if (!activity.sessions.some(({ id }) => id === sessionId)) {
+        continue
+      }
+
+      didUpdate = true
+      nextActivities = {
+        ...nextActivities,
+        [date]: {
+          ...activity,
+          sessions: activity.sessions.map((session) =>
+            session.id === sessionId ? { ...session, isActive } : session,
+          ),
+        },
+      }
+    }
+
+    return nextActivities
+  })
+
+  return didUpdate
 }
 
 export const addActiveSecondsToToday = async ({
