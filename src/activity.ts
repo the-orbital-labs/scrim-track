@@ -290,6 +290,52 @@ export const setLearningSessionActiveState = async (
   return didUpdate
 }
 
+export const closeLearningSession = async (
+  sessionId: string,
+  endedAt: string,
+): Promise<boolean> => {
+  let didUpdate = false
+
+  await updateStorageValue('dailyActivities', (current) => {
+    let nextActivities = current
+
+    for (const [date, activity] of Object.entries(current)) {
+      if (!activity.sessions.some(({ id }) => id === sessionId)) {
+        continue
+      }
+
+      didUpdate = true
+      nextActivities = {
+        ...nextActivities,
+        [date]: {
+          ...activity,
+          sessions: activity.sessions.flatMap((session) => {
+            if (session.id !== sessionId) {
+              return [session]
+            }
+
+            if (session.activeSeconds === 0) {
+              return []
+            }
+
+            return [
+              {
+                ...session,
+                isActive: false,
+                endedAt,
+              },
+            ]
+          }),
+        },
+      }
+    }
+
+    return nextActivities
+  })
+
+  return didUpdate
+}
+
 export const addActiveSecondsToToday = async ({
   activeSeconds,
   recordedAt = new Date().toISOString(),
@@ -312,6 +358,7 @@ export const addActiveSecondsToToday = async ({
                   ...session,
                   url: url ?? session.url,
                   title: title ?? session.title,
+                  isActive: true,
                   endedAt: recordedAt,
                   activeSeconds: session.activeSeconds + seconds,
                 }

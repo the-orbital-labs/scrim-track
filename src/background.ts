@@ -1,5 +1,6 @@
 import {
   addActiveSecondsForInterval,
+  closeLearningSession,
   setLearningSessionActiveState,
   startLearningSession,
 } from './activity'
@@ -39,6 +40,15 @@ type TrackingStateChangedMessage = {
   title: string | null
   isActive: boolean
   changedAt: string
+}
+
+type TrackingStoppedMessage = {
+  type: 'scrimba:tracking-stopped'
+  sessionId: string
+  url: string
+  title: string | null
+  activeSeconds: number
+  stoppedAt: string
 }
 
 type UserActivityEventType =
@@ -156,7 +166,8 @@ const isActivityPulseMessage = (
     isScrimbaUrl(candidate.url) &&
     (typeof candidate.title === 'string' || candidate.title === null) &&
     typeof candidate.activeSeconds === 'number' &&
-    candidate.activeSeconds === 5 &&
+    Number.isFinite(candidate.activeSeconds) &&
+    candidate.activeSeconds > 0 &&
     typeof candidate.recordedAt === 'string'
   )
 }
@@ -178,6 +189,28 @@ const isTrackingStateChangedMessage = (
     (typeof candidate.title === 'string' || candidate.title === null) &&
     typeof candidate.isActive === 'boolean' &&
     typeof candidate.changedAt === 'string'
+  )
+}
+
+const isTrackingStoppedMessage = (
+  message: unknown,
+): message is TrackingStoppedMessage => {
+  if (typeof message !== 'object' || message === null || !('type' in message)) {
+    return false
+  }
+
+  const candidate = message as Record<string, unknown>
+
+  return (
+    candidate.type === 'scrimba:tracking-stopped' &&
+    typeof candidate.sessionId === 'string' &&
+    typeof candidate.url === 'string' &&
+    isScrimbaUrl(candidate.url) &&
+    (typeof candidate.title === 'string' || candidate.title === null) &&
+    typeof candidate.activeSeconds === 'number' &&
+    Number.isFinite(candidate.activeSeconds) &&
+    candidate.activeSeconds >= 0 &&
+    typeof candidate.stoppedAt === 'string'
   )
 }
 
@@ -327,6 +360,74 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true
   }
 
+  if (isTrackingStoppedMessage(message)) {
+    void getUserSettings().then((settings) => {
+      if (!settings.trackingEnabled) {
+        sendResponse({ ok: false, trackingEnabled: false })
+        return
+      }
+
+      void getStorageValue('currentScrimbaPage').then((currentScrimbaPage) => {
+        const isCurrentSession =
+          currentScrimbaPage?.sessionId === message.sessionId
+        const countableActiveSeconds =
+          isCurrentSession &&
+          currentScrimbaPage.isActive &&
+          !currentScrimbaPage.isIdle
+            ? getCountableActiveSeconds(
+                currentScrimbaPage.lastActivityAt,
+                message.stoppedAt,
+                Math.floor(message.activeSeconds),
+                settings.idleTimeoutSeconds,
+              )
+            : 0
+        const endedAt =
+          countableActiveSeconds > 0
+            ? getCountableEndedAt(
+                message.stoppedAt,
+                Math.floor(message.activeSeconds),
+                countableActiveSeconds,
+              )
+            : message.stoppedAt
+        const sessionWrite =
+          countableActiveSeconds > 0
+            ? addActiveSecondsForInterval({
+                activeSeconds: countableActiveSeconds,
+                endedAt,
+                sessionId: message.sessionId,
+                url: message.url,
+                title: message.title,
+              }).then(() => closeLearningSession(message.sessionId, endedAt))
+            : closeLearningSession(message.sessionId, endedAt)
+
+        void Promise.all([
+          updateStorageValue('currentScrimbaPage', (currentPage) => {
+            if (currentPage?.sessionId !== message.sessionId) {
+              return currentPage
+            }
+
+            return {
+              ...currentPage,
+              url: message.url,
+              title: message.title,
+              isActive: false,
+              lastInactiveAt: message.stoppedAt,
+            }
+          }),
+          sessionWrite,
+        ]).then(([, didCloseSession]) => {
+          sendResponse({
+            ok: didCloseSession || isCurrentSession,
+            activeSeconds: countableActiveSeconds,
+            trackingEnabled: true,
+          })
+        })
+      })
+    })
+
+    return true
+  }
+
   if (isUserActivityMessage(message)) {
     void getUserSettings().then((settings) => {
       if (!settings.trackingEnabled) {
@@ -396,24 +497,30 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           message.recordedAt,
           settings.idleTimeoutSeconds,
         )
+        const idleAt = currentScrimbaPage.lastActivityAt
+          ? getIdleAt(currentScrimbaPage.lastActivityAt, settings.idleTimeoutSeconds)
+          : message.recordedAt
 
         if (countableActiveSeconds === 0 && isNowIdle) {
-          void updateStorageValue('currentScrimbaPage', (currentPage) => {
-            if (currentPage?.sessionId !== message.sessionId) {
-              return currentPage
-            }
+          void Promise.all([
+            updateStorageValue('currentScrimbaPage', (currentPage) => {
+              if (currentPage?.sessionId !== message.sessionId) {
+                return currentPage
+              }
 
-            return {
-              ...currentPage,
-              isIdle: true,
-              lastIdleAt: currentPage.lastActivityAt
-                ? getIdleAt(currentPage.lastActivityAt, settings.idleTimeoutSeconds)
-                : message.recordedAt,
-            }
-          }).then((currentPage) => {
+              return {
+                ...currentPage,
+                isActive: false,
+                isIdle: true,
+                lastInactiveAt: idleAt,
+                lastIdleAt: idleAt,
+              }
+            }),
+            closeLearningSession(message.sessionId, idleAt),
+          ]).then(([currentPage]) => {
             sendResponse({
               ok: false,
-              isActive: currentPage?.isActive ?? true,
+              isActive: currentPage?.isActive ?? false,
               isIdle: true,
               trackingEnabled: true,
             })
@@ -421,36 +528,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           return
         }
 
+        const endedAt = getCountableEndedAt(
+          message.recordedAt,
+          message.activeSeconds,
+          countableActiveSeconds,
+        )
+
         void addActiveSecondsForInterval({
           activeSeconds: countableActiveSeconds,
-          endedAt: getCountableEndedAt(
-            message.recordedAt,
-            message.activeSeconds,
-            countableActiveSeconds,
-          ),
+          endedAt,
           sessionId: message.sessionId,
           url: message.url,
           title: message.title,
         }).then(() => {
           if (isNowIdle) {
-            void updateStorageValue('currentScrimbaPage', (currentPage) => {
-              if (currentPage?.sessionId !== message.sessionId) {
-                return currentPage
-              }
+            void Promise.all([
+              updateStorageValue('currentScrimbaPage', (currentPage) => {
+                if (currentPage?.sessionId !== message.sessionId) {
+                  return currentPage
+                }
 
-              return {
-                ...currentPage,
-                isIdle: true,
-                lastIdleAt: currentPage.lastActivityAt
-                  ? getIdleAt(currentPage.lastActivityAt, settings.idleTimeoutSeconds)
-                  : message.recordedAt,
-              }
-            })
+                return {
+                  ...currentPage,
+                  isActive: false,
+                  isIdle: true,
+                  lastInactiveAt: idleAt,
+                  lastIdleAt: idleAt,
+                }
+              }),
+              closeLearningSession(message.sessionId, endedAt),
+            ])
           }
 
           sendResponse({
             ok: true,
-            isActive: true,
+            isActive: !isNowIdle,
             isIdle: isNowIdle,
             trackingEnabled: true,
           })

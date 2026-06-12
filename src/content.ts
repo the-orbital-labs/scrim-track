@@ -39,32 +39,26 @@ if (
   isScrimbaUrl(window.location.href) &&
   document.documentElement.dataset.scrimbaLearningTracker !== 'active'
 ) {
-  const sessionId = createSessionId()
-  const startedAt = new Date().toISOString()
   const listenerController = new AbortController()
+  let currentSessionId: string | null = null
   let lastActivityAt = Date.now()
   let lastActivityMessageAt = 0
+  let lastAccountedAt = 0
   let trackingTickIntervalId: number | null = null
+  let isTrackingActive = false
   let isTrackingIdle = false
-  let isTrackingActive =
-    document.visibilityState === 'visible' && document.hasFocus()
 
   document.documentElement.dataset.scrimbaLearningTracker = 'active'
 
-  const sendTrackingState = (isActive: boolean) => {
-    chrome.runtime.sendMessage(
-      {
-        type: 'scrimba:tracking-state-changed',
-        sessionId,
-        url: window.location.href,
-        title: getPageTitle(),
-        isActive,
-        changedAt: new Date().toISOString(),
-      },
-      () => {
-        void chrome.runtime.lastError
-      },
-    )
+  const isPageActive = () =>
+    document.visibilityState === 'visible' && document.hasFocus()
+
+  const getUnsentActiveSeconds = (recordedAt: number): number => {
+    if (lastAccountedAt === 0) {
+      return 0
+    }
+
+    return Math.max(0, Math.floor((recordedAt - lastAccountedAt) / 1000))
   }
 
   const stopTrackingTick = () => {
@@ -76,22 +70,43 @@ if (
     trackingTickIntervalId = null
   }
 
-  const handleTickResponse = (response: unknown) => {
+  const markSessionStopped = (sessionId: string) => {
+    if (currentSessionId !== sessionId) {
+      return
+    }
+
+    isTrackingActive = false
+    isTrackingIdle = true
+    currentSessionId = null
+    lastAccountedAt = 0
+    stopTrackingTick()
+  }
+
+  const handleTickResponse = (sessionId: string, response: unknown) => {
     if (!isRuntimeResponse(response)) {
       return
     }
 
     if (response.trackingEnabled === false || response.isIdle === true) {
-      isTrackingIdle = response.isIdle === true
-      stopTrackingTick()
+      markSessionStopped(sessionId)
     }
   }
 
   const sendTrackingTick = () => {
-    if (!isTrackingActive || isTrackingIdle) {
+    if (!currentSessionId || !isTrackingActive || isTrackingIdle) {
       stopTrackingTick()
       return
     }
+
+    const recordedAt = Date.now()
+    const activeSeconds = getUnsentActiveSeconds(recordedAt)
+
+    if (activeSeconds === 0) {
+      return
+    }
+
+    const sessionId = currentSessionId
+    lastAccountedAt = recordedAt
 
     chrome.runtime.sendMessage(
       {
@@ -99,10 +114,10 @@ if (
         sessionId,
         url: window.location.href,
         title: getPageTitle(),
-        activeSeconds: 5,
-        recordedAt: new Date().toISOString(),
+        activeSeconds,
+        recordedAt: new Date(recordedAt).toISOString(),
       },
-      handleTickResponse,
+      (response) => handleTickResponse(sessionId, response),
     )
   }
 
@@ -114,8 +129,85 @@ if (
     trackingTickIntervalId = window.setInterval(sendTrackingTick, 5_000)
   }
 
+  const startActiveSession = () => {
+    if (currentSessionId || !isPageActive()) {
+      return
+    }
+
+    const now = Date.now()
+    const sessionId = createSessionId()
+
+    currentSessionId = sessionId
+    lastActivityAt = now
+    lastAccountedAt = now
+    isTrackingActive = true
+    isTrackingIdle = false
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'scrimba:tracking-started',
+        sessionId,
+        url: window.location.href,
+        title: getPageTitle(),
+        startedAt: new Date(now).toISOString(),
+        isActive: true,
+        lastActivityAt: new Date(lastActivityAt).toISOString(),
+      },
+      (response) => {
+        void chrome.runtime.lastError
+
+        if (
+          currentSessionId !== sessionId ||
+          !isRuntimeResponse(response) ||
+          !response.ok
+        ) {
+          markSessionStopped(sessionId)
+          return
+        }
+
+        startTrackingTick()
+      },
+    )
+  }
+
+  const stopActiveSession = () => {
+    if (!currentSessionId) {
+      return
+    }
+
+    const stoppedAt = Date.now()
+    const sessionId = currentSessionId
+    const activeSeconds =
+      isTrackingActive && !isTrackingIdle ? getUnsentActiveSeconds(stoppedAt) : 0
+
+    currentSessionId = null
+    isTrackingActive = false
+    isTrackingIdle = false
+    lastAccountedAt = 0
+    stopTrackingTick()
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'scrimba:tracking-stopped',
+        sessionId,
+        url: window.location.href,
+        title: getPageTitle(),
+        activeSeconds,
+        stoppedAt: new Date(stoppedAt).toISOString(),
+      },
+      () => {
+        void chrome.runtime.lastError
+      },
+    )
+  }
+
   const sendUserActivity = (eventType: UserActivityEventType) => {
     const now = Date.now()
+
+    if (!currentSessionId) {
+      startActiveSession()
+      return
+    }
 
     lastActivityAt = now
     isTrackingIdle = false
@@ -127,6 +219,7 @@ if (
       return
     }
 
+    const sessionId = currentSessionId
     lastActivityMessageAt = now
 
     chrome.runtime.sendMessage(
@@ -141,70 +234,32 @@ if (
       (response) => {
         void chrome.runtime.lastError
 
-        if (isRuntimeResponse(response) && response.ok && isPageActive()) {
+        if (
+          currentSessionId === sessionId &&
+          isRuntimeResponse(response) &&
+          response.ok &&
+          isPageActive()
+        ) {
           startTrackingTick()
         }
       },
     )
   }
 
-  chrome.runtime.sendMessage(
-    {
-      type: 'scrimba:tracking-started',
-      sessionId,
-      url: window.location.href,
-      title: getPageTitle(),
-      startedAt,
-      isActive: isTrackingActive,
-      lastActivityAt: new Date(lastActivityAt).toISOString(),
-    },
-    (response) => {
-      void chrome.runtime.lastError
-
-      if (isRuntimeResponse(response) && response.ok) {
-        startTrackingTick()
-      }
-    },
-  )
-
   console.info('Scrimba Learning Tracker content script ready')
 
-  const isPageActive = () =>
-    document.visibilityState === 'visible' && document.hasFocus()
-
-  const pauseTracking = () => {
-    if (!isTrackingActive) {
-      return
-    }
-
-    isTrackingActive = false
-    stopTrackingTick()
-    sendTrackingState(false)
-  }
-
   const cleanup = () => {
-    pauseTracking()
-    stopTrackingTick()
+    stopActiveSession()
     listenerController.abort()
-  }
-
-  const resumeTracking = () => {
-    if (isTrackingActive || !isPageActive()) {
-      return
-    }
-
-    isTrackingActive = true
-    sendTrackingState(true)
-    startTrackingTick()
   }
 
   const syncTrackingState = () => {
     if (isPageActive()) {
-      resumeTracking()
+      startActiveSession()
       return
     }
 
-    pauseTracking()
+    stopActiveSession()
   }
 
   const listenerOptions = { signal: listenerController.signal }
@@ -212,6 +267,8 @@ if (
     passive: true,
     signal: listenerController.signal,
   }
+
+  startActiveSession()
 
   window.addEventListener('pagehide', cleanup, listenerOptions)
   window.addEventListener('focus', syncTrackingState, listenerOptions)
