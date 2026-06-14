@@ -15,6 +15,14 @@ const parseLocalDateKey = (dateKey: string): Date => {
   return new Date(year, month - 1, day)
 }
 
+const getPreviousLocalDateKey = (dateKey: string): string => {
+  const date = parseLocalDateKey(dateKey)
+
+  date.setDate(date.getDate() - 1)
+
+  return getLocalDateKey(date)
+}
+
 export const calculateStreakStatus = (
   activities: Record<string, DailyActivity>,
   today: string,
@@ -45,9 +53,12 @@ export const calculateStreakStatus = (
   }
 
   let currentStreak = 0
+  const currentStreakStartDate = completedDates.has(today)
+    ? today
+    : getPreviousLocalDateKey(today)
 
   for (
-    let cursor = parseLocalDateKey(today);
+    let cursor = parseLocalDateKey(currentStreakStartDate);
     completedDates.has(getLocalDateKey(cursor));
     cursor.setDate(cursor.getDate() - 1)
   ) {
