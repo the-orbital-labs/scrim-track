@@ -2,20 +2,51 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { getActivityForDate } from './activity'
 import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress'
+import { getDashboardHeatmapGrid } from './heatmap'
+import type { HeatmapDay, HeatmapGrid, HeatmapWeek } from './heatmap'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type { DailyActivity, StreakStatus, UserSettings } from './storage'
 import { getStreakDisplayState } from './streakDisplay'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' })
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
+
+const parseLocalDateKey = (dateKey: string): Date => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+
+  return new Date(year, month - 1, day)
+}
+
+const getMonthLabel = (week: HeatmapWeek): string => {
+  const firstMonthDay = week.days.find((day) => {
+    const date = parseLocalDateKey(day.date)
+
+    return !day.isOutsideRange && date.getDate() <= 7
+  })
+
+  return firstMonthDay ? monthFormatter.format(parseLocalDateKey(firstMonthDay.date)) : ''
+}
+
+const getHeatmapDayTitle = (day: HeatmapDay): string => {
+  if (day.isFuture) {
+    return `${day.date}: future day`
+  }
+
+  const goalStatus = day.goalCompleted ? 'goal complete' : 'goal not complete'
+
+  return `${day.date}: ${formatMinutes(day.activeSeconds)}, ${goalStatus}`
+}
 
 function App() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
   const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
+  const [heatmapGrid, setHeatmapGrid] = useState<HeatmapGrid | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
@@ -23,9 +54,11 @@ function App() {
     void Promise.all([
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
-    ]).then(([activity, streak]) => {
+      getDashboardHeatmapGrid(),
+    ]).then(([activity, streak, heatmap]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
+      setHeatmapGrid(heatmap)
     })
   }
 
@@ -37,8 +70,14 @@ function App() {
       getUserSettings(),
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
+      getDashboardHeatmapGrid(),
     ]).then(
-      ([loadedSettings, loadedTodayActivity, loadedStreakStatus]) => {
+      ([
+        loadedSettings,
+        loadedTodayActivity,
+        loadedStreakStatus,
+        loadedHeatmapGrid,
+      ]) => {
         if (!isMounted) {
           return
         }
@@ -46,6 +85,7 @@ function App() {
         setSettings(loadedSettings)
         setTodayActivity(loadedTodayActivity)
         setStreakStatus(loadedStreakStatus)
+        setHeatmapGrid(loadedHeatmapGrid)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -87,6 +127,10 @@ function App() {
       ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
       : 'Not set'
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
+  const activeHeatmapDays =
+    heatmapGrid?.weeks
+      .flatMap((week) => week.days)
+      .filter((day) => !day.isOutsideRange && day.activeSeconds > 0).length ?? 0
 
   return (
     <main className="app-shell dashboard-shell">
@@ -167,6 +211,74 @@ function App() {
             </div>
           </div>
           {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-heading-row">
+          <h2>Activity Calendar</h2>
+          <span>{activeHeatmapDays} active days</span>
+        </div>
+
+        <div className="dashboard-heatmap" aria-label="365-day activity heatmap">
+          <div className="dashboard-months" aria-hidden="true">
+            {heatmapGrid?.weeks.map((week) => (
+              <span key={week.startDate}>{getMonthLabel(week)}</span>
+            ))}
+          </div>
+
+          <div className="dashboard-heatmap-body">
+            <div className="dashboard-weekdays" aria-hidden="true">
+              {weekdayLabels.map((label, index) => (
+                <span key={label}>{index % 2 === 1 ? label : ''}</span>
+              ))}
+            </div>
+
+            <div
+              className="dashboard-heatmap-grid"
+              role="img"
+              aria-label="Daily Scrimba activity for the last 365 days"
+            >
+              {heatmapGrid?.weeks.map((week) => (
+                <div className="dashboard-heatmap-week" key={week.startDate}>
+                  {week.days.map((day) => (
+                    <span
+                      key={day.date}
+                      className={[
+                        'dashboard-heatmap-cell',
+                        `heatmap-level-${day.intensity}`,
+                        day.isToday ? 'is-today' : '',
+                        day.isFuture || day.isOutsideRange ? 'is-muted' : '',
+                      ].filter(Boolean).join(' ')}
+                      title={getHeatmapDayTitle(day)}
+                      aria-label={getHeatmapDayTitle(day)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="heatmap-legend" aria-label="Heatmap intensity legend">
+            <span>Less</span>
+            {[0, 1, 2, 3, 4, 5].map((level) => (
+              <span
+                key={level}
+                className={`dashboard-heatmap-cell heatmap-level-${level}`}
+                title={
+                  [
+                    '0 min',
+                    '1-14 min',
+                    '15-29 min',
+                    '30-59 min',
+                    '60-119 min',
+                    '120+ min',
+                  ][level]
+                }
+              />
+            ))}
+            <span>More</span>
+          </div>
         </div>
       </section>
     </main>
