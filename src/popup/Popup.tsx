@@ -17,6 +17,8 @@ import {
 } from '../settings'
 import type { AverageWindowDays, PathProgress, UserSettings } from '../storage'
 
+const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+
 const openDashboard = () => {
   if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') })
@@ -27,6 +29,9 @@ const openDashboard = () => {
 }
 
 const secondsToMinutes = (seconds: number): number => Math.round(seconds / 60)
+
+const isValidDailyGoalMinutes = (value: number): boolean =>
+  Number.isInteger(value) && value > 0 && value <= 24 * 60
 
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
@@ -40,6 +45,7 @@ function Popup() {
   const [pathName, setPathName] = useState('')
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
   const [progressPercentage, setProgressPercentage] = useState('0')
+  const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
@@ -85,8 +91,24 @@ function Popup() {
     refreshProjection()
   }
 
-  const saveGoal = () => {
-    void saveDailyGoal(Number(dailyGoalMinutes) * 60).then(setSettings)
+  const saveGoalMinutes = (minutes: number) => {
+    if (!isValidDailyGoalMinutes(minutes)) {
+      setDailyGoalError('Enter 1-1440 minutes.')
+      setDailyGoalMinutes(
+        settings ? String(secondsToMinutes(settings.dailyGoalSeconds)) : '30',
+      )
+      return
+    }
+
+    setDailyGoalError(null)
+    setDailyGoalMinutes(String(minutes))
+    void saveDailyGoal(minutes * 60).then(setSettings).catch(() => {
+      setDailyGoalError('Enter 1-1440 minutes.')
+    })
+  }
+
+  const saveCustomGoal = () => {
+    saveGoalMinutes(Number(dailyGoalMinutes))
   }
 
   const saveIdleTimeoutValue = () => {
@@ -146,16 +168,35 @@ function Popup() {
 
         <label>
           <span>Daily goal</span>
-          <div className="input-row">
-            <input
-              min="0"
-              type="number"
-              value={dailyGoalMinutes}
-              onBlur={saveGoal}
-              onChange={(event) => setDailyGoalMinutes(event.target.value)}
-            />
-            <span>min</span>
+          <div className="goal-control" role="group" aria-label="Daily goal presets">
+            <div className="segmented-control">
+              {dailyGoalPresetMinutes.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  className={
+                    Number(dailyGoalMinutes) === minutes ? 'is-selected' : undefined
+                  }
+                  onClick={() => saveGoalMinutes(minutes)}
+                >
+                  {minutes}
+                </button>
+              ))}
+            </div>
+            <div className="input-row">
+              <input
+                max="1440"
+                min="1"
+                step="1"
+                type="number"
+                value={dailyGoalMinutes}
+                onBlur={saveCustomGoal}
+                onChange={(event) => setDailyGoalMinutes(event.target.value)}
+              />
+              <span>min</span>
+            </div>
           </div>
+          {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
         </label>
 
         <label>

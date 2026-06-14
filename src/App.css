@@ -150,7 +150,8 @@
 
 .settings-panel input[type='number'],
 .settings-panel input[type='text'],
-.settings-panel select {
+.settings-panel select,
+.dashboard-input-row input[type='number'] {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
@@ -162,7 +163,42 @@
 }
 
 .settings-panel input:focus-visible,
-.settings-panel select:focus-visible {
+.settings-panel select:focus-visible,
+.dashboard-input-row input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.goal-control {
+  display: grid;
+  gap: 8px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.segmented-control button {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--bg);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented-control button:hover,
+.segmented-control button.is-selected {
+  border-color: var(--accent);
+  color: white;
+  background: var(--accent);
+}
+
+.segmented-control button:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
@@ -174,6 +210,23 @@
   gap: 8px;
   color: var(--muted);
   font-weight: 600;
+}
+
+.dashboard-goal-row {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 16px;
+}
+
+.dashboard-input-row {
+  max-width: 180px;
+}
+
+.error-text {
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .projection-line {

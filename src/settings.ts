@@ -1,8 +1,27 @@
 import { getStorageValue, setStorageValue, updateStorageValue } from './storage'
 import type { UserSettings } from './storage'
 
+const maxDailyGoalSeconds = 24 * 60 * 60
+
 const toNonNegativeSeconds = (value: number): number =>
   Math.max(0, Math.floor(value))
+
+const getLocalDateKey = (value: Date = new Date()): string =>
+  [
+    value.getFullYear(),
+    String(value.getMonth() + 1).padStart(2, '0'),
+    String(value.getDate()).padStart(2, '0'),
+  ].join('-')
+
+const normalizeDailyGoalSeconds = (value: number): number => {
+  const seconds = Math.floor(value)
+
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > maxDailyGoalSeconds) {
+    throw new Error('Daily goal must be between 1 minute and 24 hours.')
+  }
+
+  return seconds
+}
 
 const normalizeTimezone = (timezone: string): string => {
   try {
@@ -17,11 +36,37 @@ const normalizeTimezone = (timezone: string): string => {
 export const getUserSettings = (): Promise<UserSettings> =>
   getStorageValue('userSettings')
 
-export const saveDailyGoal = (dailyGoalSeconds: number): Promise<UserSettings> =>
-  updateStorageValue('userSettings', (settings) => ({
-    ...settings,
-    dailyGoalSeconds: toNonNegativeSeconds(dailyGoalSeconds),
+export const saveDailyGoal = async (
+  dailyGoalSeconds: number,
+): Promise<UserSettings> => {
+  const normalizedDailyGoalSeconds = normalizeDailyGoalSeconds(dailyGoalSeconds)
+  const settings = await updateStorageValue('userSettings', (currentSettings) => ({
+    ...currentSettings,
+    dailyGoalSeconds: normalizedDailyGoalSeconds,
   }))
+  const today = getLocalDateKey()
+
+  await updateStorageValue('dailyActivities', (activities) => {
+    const activity = activities[today] ?? {
+      date: today,
+      activeSeconds: 0,
+      goalSeconds: normalizedDailyGoalSeconds,
+      goalCompleted: false,
+      sessions: [],
+    }
+
+    return {
+      ...activities,
+      [today]: {
+        ...activity,
+        goalSeconds: normalizedDailyGoalSeconds,
+        goalCompleted: activity.activeSeconds >= normalizedDailyGoalSeconds,
+      },
+    }
+  })
+
+  return settings
+}
 
 export const saveIdleTimeout = (
   idleTimeoutSeconds: number,
