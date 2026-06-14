@@ -3,7 +3,8 @@ import './App.css'
 import { getActivityForDate } from './activity'
 import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getUserSettings, saveDailyGoal } from './settings'
-import type { DailyActivity, UserSettings } from './storage'
+import { getStorageValue } from './storage'
+import type { DailyActivity, StreakStatus, UserSettings } from './storage'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -13,25 +14,37 @@ const isValidDailyGoalMinutes = (value: number): boolean =>
 function App() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
+  const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
   const refreshTodayActivity = () => {
-    void getActivityForDate(new Date()).then(setTodayActivity)
+    void Promise.all([
+      getActivityForDate(new Date()),
+      getStorageValue('streakStatus'),
+    ]).then(([activity, streak]) => {
+      setTodayActivity(activity)
+      setStreakStatus(streak)
+    })
   }
 
   useEffect(() => {
     let isMounted = true
     const refreshIntervalId = window.setInterval(refreshTodayActivity, 5_000)
 
-    void Promise.all([getUserSettings(), getActivityForDate(new Date())]).then(
-      ([loadedSettings, loadedTodayActivity]) => {
+    void Promise.all([
+      getUserSettings(),
+      getActivityForDate(new Date()),
+      getStorageValue('streakStatus'),
+    ]).then(
+      ([loadedSettings, loadedTodayActivity, loadedStreakStatus]) => {
         if (!isMounted) {
           return
         }
 
         setSettings(loadedSettings)
         setTodayActivity(loadedTodayActivity)
+        setStreakStatus(loadedStreakStatus)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -91,8 +104,8 @@ function App() {
         </article>
         <article>
           <span className="metric-label">Streak</span>
-          <strong>0 days</strong>
-          <span>Current learning streak</span>
+          <strong>{streakStatus?.currentStreak ?? 0} days</strong>
+          <span>Completed goal streak</span>
         </article>
         <article>
           <span className="metric-label">Goal</span>

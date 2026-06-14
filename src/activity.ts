@@ -1,6 +1,7 @@
 import { getUserSettings } from './settings'
 import { getStorageValue, setStorageValue, updateStorageValue } from './storage'
 import type { DailyActivity, LearningSession } from './storage'
+import { calculateStreakStatus } from './streak'
 
 type StartLearningSessionInput = Omit<
   LearningSession,
@@ -152,52 +153,6 @@ const withUpdatedSession = (
           }
         : session,
     ),
-  }
-}
-
-const calculateStreakStatus = (
-  activities: Record<string, DailyActivity>,
-  today: string,
-) => {
-  const activeDates = new Set(
-    Object.values(activities)
-      .filter((activity) => activity.activeSeconds > 0)
-      .map((activity) => activity.date),
-  )
-  const sortedDates = [...activeDates].sort()
-  let longestStreak = 0
-  let rollingStreak = 0
-  let previousDate: Date | null = null
-
-  for (const dateKey of sortedDates) {
-    const currentDate = parseLocalDateKey(dateKey)
-    const previousTime = previousDate?.getTime()
-    const expectedPreviousTime = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      currentDate.getDate() - 1,
-    ).getTime()
-
-    rollingStreak =
-      previousTime === expectedPreviousTime ? rollingStreak + 1 : 1
-    longestStreak = Math.max(longestStreak, rollingStreak)
-    previousDate = currentDate
-  }
-
-  let currentStreak = 0
-
-  for (
-    let cursor = parseLocalDateKey(today);
-    activeDates.has(getLocalDateKey(cursor));
-    cursor.setDate(cursor.getDate() - 1)
-  ) {
-    currentStreak += 1
-  }
-
-  return {
-    currentStreak,
-    longestStreak,
-    lastCalculatedAt: new Date().toISOString(),
   }
 }
 
@@ -372,6 +327,7 @@ export const addActiveSecondsToToday = async ({
       [date]: nextActivity,
     }
   })
+  await setStorageValue('streakStatus', calculateStreakStatus(activities, date))
 
   return activities[date]
 }
@@ -484,6 +440,10 @@ export const updateGoalCompletionStatus = async (
       [dateKey]: withGoalCompletion(activity),
     }
   })
+  await setStorageValue(
+    'streakStatus',
+    calculateStreakStatus(activities, dateKey),
+  )
 
   return activities[dateKey]
 }

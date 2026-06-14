@@ -1,5 +1,6 @@
 import { getStorageValue, setStorageValue, updateStorageValue } from './storage'
 import type { UserSettings } from './storage'
+import { calculateStreakStatus } from './streak'
 
 const maxDailyGoalSeconds = 24 * 60 * 60
 
@@ -46,8 +47,8 @@ export const saveDailyGoal = async (
   }))
   const today = getLocalDateKey()
 
-  await updateStorageValue('dailyActivities', (activities) => {
-    const activity = activities[today] ?? {
+  const activities = await updateStorageValue('dailyActivities', (currentActivities) => {
+    const activity = currentActivities[today] ?? {
       date: today,
       activeSeconds: 0,
       goalSeconds: normalizedDailyGoalSeconds,
@@ -56,7 +57,7 @@ export const saveDailyGoal = async (
     }
 
     return {
-      ...activities,
+      ...currentActivities,
       [today]: {
         ...activity,
         goalSeconds: normalizedDailyGoalSeconds,
@@ -64,6 +65,7 @@ export const saveDailyGoal = async (
       },
     }
   })
+  await setStorageValue('streakStatus', calculateStreakStatus(activities, today))
 
   return settings
 }

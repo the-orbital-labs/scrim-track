@@ -21,13 +21,16 @@ export const getGoalProgress = (
 ): GoalProgress => {
   const activeSeconds = todayActivity?.activeSeconds ?? 0
   const goalSeconds = todayActivity?.goalSeconds ?? settings?.dailyGoalSeconds ?? 0
+  const isComplete =
+    todayActivity?.goalCompleted === true ||
+    (goalSeconds > 0 && activeSeconds >= goalSeconds)
   const percentage =
     goalSeconds > 0 ? Math.floor((activeSeconds / goalSeconds) * 100) : 0
 
   return {
     activeSeconds,
     goalSeconds,
-    isComplete: goalSeconds > 0 && activeSeconds >= goalSeconds,
+    isComplete,
     remainingSeconds: Math.max(0, goalSeconds - activeSeconds),
     percentage,
     visualPercentage: Math.min(100, percentage),
