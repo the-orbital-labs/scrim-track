@@ -3,11 +3,15 @@ import { getUserSettings } from './settings'
 import { getStorageValue } from './storage'
 import type { DailyActivity } from './storage'
 
+export type HeatmapIntensityLevel = 0 | 1 | 2 | 3 | 4 | 5
+
 export type HeatmapDay = {
   date: string
   activity: DailyActivity
+  activeMinutes: number
   activeSeconds: number
   goalCompleted: boolean
+  intensity: HeatmapIntensityLevel
   isFuture: boolean
   isOutsideRange: boolean
   isToday: boolean
@@ -63,6 +67,34 @@ const endOfLocalWeek = (
 const isSameLocalDate = (left: Date, right: Date): boolean =>
   getLocalDateKey(left) === getLocalDateKey(right)
 
+export const getHeatmapIntensity = (
+  activeSeconds: number,
+): HeatmapIntensityLevel => {
+  const activeMinutes = Math.floor(Math.max(0, activeSeconds) / 60)
+
+  if (activeMinutes === 0) {
+    return 0
+  }
+
+  if (activeMinutes < 15) {
+    return 1
+  }
+
+  if (activeMinutes < 30) {
+    return 2
+  }
+
+  if (activeMinutes < 60) {
+    return 3
+  }
+
+  if (activeMinutes < 120) {
+    return 4
+  }
+
+  return 5
+}
+
 export const generateHeatmapGrid = (
   activities: Record<string, DailyActivity>,
   {
@@ -86,12 +118,15 @@ export const generateHeatmapGrid = (
       const date = addLocalDays(weekStart, offset)
       const dateKey = getLocalDateKey(date)
       const activity = activities[dateKey] ?? createDailyActivity(dateKey, goalSeconds)
+      const activeMinutes = Math.floor(activity.activeSeconds / 60)
 
       weekDays.push({
         date: dateKey,
         activity,
+        activeMinutes,
         activeSeconds: activity.activeSeconds,
         goalCompleted: activity.goalCompleted,
+        intensity: getHeatmapIntensity(activity.activeSeconds),
         isFuture: date > today && !isSameLocalDate(date, today),
         isOutsideRange: date < rangeStart || date > rangeEnd,
         isToday: isSameLocalDate(date, today),
