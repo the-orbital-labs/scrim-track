@@ -212,6 +212,34 @@
   font-weight: 600;
 }
 
+.streak-state {
+  display: grid;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+
+.streak-state strong {
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.streak-state span,
+.streak-state p {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.streak-state-complete {
+  border-left-color: var(--success);
+}
+
+.streak-state-pending {
+  border-left-color: var(--accent);
+}
+
 .goal-progress {
   display: grid;
   gap: 8px;

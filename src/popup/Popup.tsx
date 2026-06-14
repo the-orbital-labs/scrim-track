@@ -17,12 +17,15 @@ import {
   saveTimezone,
   saveTrackingEnabled,
 } from '../settings'
+import { getStorageValue } from '../storage'
 import type {
   AverageWindowDays,
   DailyActivity,
   PathProgress,
+  StreakStatus,
   UserSettings,
 } from '../storage'
+import { getStreakDisplayState } from '../streakDisplay'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -41,6 +44,7 @@ const isValidDailyGoalMinutes = (value: number): boolean =>
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
+  const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
@@ -60,7 +64,13 @@ function Popup() {
   }
 
   const refreshTodayActivity = () => {
-    void getActivityForDate(new Date()).then(setTodayActivity)
+    void Promise.all([
+      getActivityForDate(new Date()),
+      getStorageValue('streakStatus'),
+    ]).then(([activity, streak]) => {
+      setTodayActivity(activity)
+      setStreakStatus(streak)
+    })
   }
 
   useEffect(() => {
@@ -70,16 +80,24 @@ function Popup() {
     void Promise.all([
       getUserSettings(),
       getActivityForDate(new Date()),
+      getStorageValue('streakStatus'),
       getPathProgress(),
       getPathProjection(),
     ]).then(
-      ([loadedSettings, loadedTodayActivity, loadedPathProgress, projection]) => {
+      ([
+        loadedSettings,
+        loadedTodayActivity,
+        loadedStreakStatus,
+        loadedPathProgress,
+        projection,
+      ]) => {
         if (!isMounted) {
           return
         }
 
         setSettings(loadedSettings)
         setTodayActivity(loadedTodayActivity)
+        setStreakStatus(loadedStreakStatus)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setDailyGoalMinutes(
@@ -172,6 +190,7 @@ function Popup() {
     goalProgress.goalSeconds > 0
       ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
       : 'Not set'
+  const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
     <main className="popup-shell" aria-label="Scrimba Learning Tracker popup">
@@ -184,6 +203,12 @@ function Popup() {
       </div>
 
       <section className="settings-panel" aria-label="Tracking settings">
+        <div className={`streak-state streak-state-${streakDisplay.tone}`}>
+          <strong>{streakDisplay.currentLabel}</strong>
+          <span>{streakDisplay.longestLabel}</span>
+          <p>{streakDisplay.message}</p>
+        </div>
+
         <div className="goal-progress" aria-label="Today goal progress">
           <div className="goal-progress-header">
             <span>Today</span>

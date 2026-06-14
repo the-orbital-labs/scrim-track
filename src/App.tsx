@@ -5,6 +5,7 @@ import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type { DailyActivity, StreakStatus, UserSettings } from './storage'
+import { getStreakDisplayState } from './streakDisplay'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -85,6 +86,7 @@ function App() {
     goalProgress.goalSeconds > 0
       ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
       : 'Not set'
+  const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
     <main className="app-shell dashboard-shell">
@@ -104,8 +106,8 @@ function App() {
         </article>
         <article>
           <span className="metric-label">Streak</span>
-          <strong>{streakStatus?.currentStreak ?? 0} days</strong>
-          <span>Completed goal streak</span>
+          <strong>{streakDisplay.currentLabel}</strong>
+          <span>{streakDisplay.longestLabel}</span>
         </article>
         <article>
           <span className="metric-label">Goal</span>
@@ -116,6 +118,11 @@ function App() {
 
       <section className="panel">
         <h2>Daily Goal</h2>
+        <div className={`streak-state streak-state-${streakDisplay.tone}`}>
+          <strong>{streakDisplay.currentLabel}</strong>
+          <span>{streakDisplay.longestLabel}</span>
+          <p>{streakDisplay.message}</p>
+        </div>
         <div className="goal-progress" aria-label="Today goal progress">
           <div className="goal-progress-header">
             <span>Today</span>
