@@ -23,6 +23,53 @@ const getPreviousLocalDateKey = (dateKey: string): string => {
   return getLocalDateKey(date)
 }
 
+const isPreviousLocalDate = (
+  previousDate: Date | null,
+  currentDate: Date,
+): boolean => {
+  if (!previousDate) {
+    return false
+  }
+
+  return (
+    previousDate.getTime() ===
+    new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      currentDate.getDate() - 1,
+    ).getTime()
+  )
+}
+
+const calculateLongestCompletedStreak = (
+  activities: Record<string, DailyActivity>,
+): number => {
+  const sortedActivities = Object.values(activities).sort((a, b) =>
+    a.date.localeCompare(b.date),
+  )
+  let longestStreak = 0
+  let rollingStreak = 0
+  let previousDate: Date | null = null
+
+  for (const activity of sortedActivities) {
+    const currentDate = parseLocalDateKey(activity.date)
+
+    if (!activity.goalCompleted) {
+      rollingStreak = 0
+      previousDate = currentDate
+      continue
+    }
+
+    rollingStreak = isPreviousLocalDate(previousDate, currentDate)
+      ? rollingStreak + 1
+      : 1
+    longestStreak = Math.max(longestStreak, rollingStreak)
+    previousDate = currentDate
+  }
+
+  return longestStreak
+}
+
 export const calculateStreakStatus = (
   activities: Record<string, DailyActivity>,
   today: string,
@@ -32,25 +79,7 @@ export const calculateStreakStatus = (
       .filter((activity) => activity.goalCompleted)
       .map((activity) => activity.date),
   )
-  const sortedDates = [...completedDates].sort()
-  let longestStreak = 0
-  let rollingStreak = 0
-  let previousDate: Date | null = null
-
-  for (const dateKey of sortedDates) {
-    const currentDate = parseLocalDateKey(dateKey)
-    const previousTime = previousDate?.getTime()
-    const expectedPreviousTime = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      currentDate.getDate() - 1,
-    ).getTime()
-
-    rollingStreak =
-      previousTime === expectedPreviousTime ? rollingStreak + 1 : 1
-    longestStreak = Math.max(longestStreak, rollingStreak)
-    previousDate = currentDate
-  }
+  const longestStreak = calculateLongestCompletedStreak(activities)
 
   let currentStreak = 0
   const currentStreakStartDate = completedDates.has(today)
