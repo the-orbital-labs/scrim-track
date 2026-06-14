@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import '../App.css'
 import { getActivityForDate } from '../activity'
 import { formatMinutes, getGoalProgress, secondsToMinutes } from '../goalProgress'
+import { getPopupHeatmapGrid } from '../heatmap'
+import type { HeatmapDay, HeatmapGrid } from '../heatmap'
 import {
   getPathProgress,
   saveAverageWindowDays,
@@ -41,10 +43,21 @@ const openDashboard = () => {
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
 
+const getHeatmapDayTitle = (day: HeatmapDay): string => {
+  const minutes = formatMinutes(day.activeSeconds)
+
+  if (day.isFuture) {
+    return `${day.date}: future day`
+  }
+
+  return `${day.date}: ${minutes}${day.goalCompleted ? ', goal complete' : ''}`
+}
+
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
   const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
+  const [heatmapGrid, setHeatmapGrid] = useState<HeatmapGrid | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
@@ -67,9 +80,11 @@ function Popup() {
     void Promise.all([
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
-    ]).then(([activity, streak]) => {
+      getPopupHeatmapGrid(),
+    ]).then(([activity, streak, heatmap]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
+      setHeatmapGrid(heatmap)
     })
   }
 
@@ -81,6 +96,7 @@ function Popup() {
       getUserSettings(),
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
+      getPopupHeatmapGrid(),
       getPathProgress(),
       getPathProjection(),
     ]).then(
@@ -88,6 +104,7 @@ function Popup() {
         loadedSettings,
         loadedTodayActivity,
         loadedStreakStatus,
+        loadedHeatmapGrid,
         loadedPathProgress,
         projection,
       ]) => {
@@ -98,6 +115,7 @@ function Popup() {
         setSettings(loadedSettings)
         setTodayActivity(loadedTodayActivity)
         setStreakStatus(loadedStreakStatus)
+        setHeatmapGrid(loadedHeatmapGrid)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setDailyGoalMinutes(
@@ -222,6 +240,32 @@ function Popup() {
               ? 'Goal complete'
               : `${formatMinutes(goalProgress.remainingSeconds)} remaining`}
           </p>
+        </div>
+
+        <div className="mini-heatmap" aria-label="Recent activity heatmap">
+          <div className="mini-heatmap-header">
+            <span>Last 12 weeks</span>
+            <span>Less More</span>
+          </div>
+          <div className="mini-heatmap-grid" role="img" aria-label="Daily Scrimba activity for the last 12 weeks">
+            {heatmapGrid?.weeks.map((week) => (
+              <div className="mini-heatmap-week" key={week.startDate}>
+                {week.days.map((day) => (
+                  <span
+                    key={day.date}
+                    className={[
+                      'mini-heatmap-cell',
+                      `heatmap-level-${day.intensity}`,
+                      day.isToday ? 'is-today' : '',
+                      day.isFuture ? 'is-future' : '',
+                    ].filter(Boolean).join(' ')}
+                    title={getHeatmapDayTitle(day)}
+                    aria-label={getHeatmapDayTitle(day)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
         <label className="toggle-row">

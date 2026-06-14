@@ -10,6 +10,12 @@
   --success: #12805c;
   --focus: rgba(37, 99, 235, 0.28);
   --shadow: 0 8px 24px rgba(22, 29, 39, 0.08);
+  --heatmap-0: #e8edf3;
+  --heatmap-1: #b7e4c7;
+  --heatmap-2: #74c69d;
+  --heatmap-3: #40916c;
+  --heatmap-4: #2d6a4f;
+  --heatmap-5: #1b4332;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -38,6 +44,12 @@
     --success: #34d399;
     --focus: rgba(96, 165, 250, 0.3);
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+    --heatmap-0: #252c36;
+    --heatmap-1: #17452f;
+    --heatmap-2: #1f6f49;
+    --heatmap-3: #2f9e67;
+    --heatmap-4: #52c98a;
+    --heatmap-5: #95e8b7;
   }
 }
 
