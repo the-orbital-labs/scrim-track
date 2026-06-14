@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { getActivityForDate } from './activity'
-import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress'
+import { formatActiveTime, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getDashboardHeatmapGrid } from './heatmap'
 import type { HeatmapGrid, HeatmapWeek } from './heatmap'
 import { getHeatmapTooltipLines, getHeatmapTooltipText } from './heatmapTooltip'
@@ -115,7 +115,7 @@ function App() {
   const goalProgress = getGoalProgress(todayActivity, settings)
   const progressText =
     goalProgress.goalSeconds > 0
-      ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
+      ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
       : 'Not set'
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
   const activeHeatmapDays =
@@ -136,7 +136,7 @@ function App() {
       <section className="summary-grid" aria-label="Tracker setup status">
         <article>
           <span className="metric-label">Today</span>
-          <strong>{formatMinutes(todayActivity?.activeSeconds ?? 0)}</strong>
+          <strong>{formatActiveTime(todayActivity?.activeSeconds ?? 0)}</strong>
           <span>Active Scrimba time</span>
         </article>
         <article>
@@ -169,7 +169,7 @@ function App() {
           <p className="projection-line">
             {goalProgress.isComplete
               ? 'Goal complete'
-              : `${formatMinutes(goalProgress.remainingSeconds)} remaining`}
+              : `${formatActiveTime(goalProgress.remainingSeconds)} remaining`}
           </p>
         </div>
         <div className="dashboard-goal-row">

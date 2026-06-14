@@ -254,6 +254,27 @@
   border-left-color: var(--accent);
 }
 
+.today-time-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.today-time-row strong {
+  color: var(--text-h);
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .goal-progress {
   display: grid;
   gap: 8px;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import '../App.css'
 import { getActivityForDate } from '../activity'
-import { formatMinutes, getGoalProgress, secondsToMinutes } from '../goalProgress'
+import { formatActiveTime, getGoalProgress, secondsToMinutes } from '../goalProgress'
 import { getPopupHeatmapGrid } from '../heatmap'
 import type { HeatmapGrid } from '../heatmap'
 import { getHeatmapTooltipLines, getHeatmapTooltipText } from '../heatmapTooltip'
@@ -197,8 +197,9 @@ function Popup() {
   const goalProgress = getGoalProgress(todayActivity, settings)
   const progressText =
     goalProgress.goalSeconds > 0
-      ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
+      ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
       : 'Not set'
+  const todayActiveTime = formatActiveTime(todayActivity?.activeSeconds ?? 0)
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
@@ -218,6 +219,11 @@ function Popup() {
           <p>{streakDisplay.message}</p>
         </div>
 
+        <div className="today-time-row" aria-label="Today active learning time">
+          <span>Today active time</span>
+          <strong>{todayActiveTime}</strong>
+        </div>
+
         <div className="goal-progress" aria-label="Today goal progress">
           <div className="goal-progress-header">
             <span>Today</span>
@@ -229,7 +235,7 @@ function Popup() {
           <p className="projection-line">
             {goalProgress.isComplete
               ? 'Goal complete'
-              : `${formatMinutes(goalProgress.remainingSeconds)} remaining`}
+              : `${formatActiveTime(goalProgress.remainingSeconds)} remaining`}
           </p>
         </div>
 
