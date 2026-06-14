@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { getActivityForDate } from './activity'
+import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getUserSettings, saveDailyGoal } from './settings'
 import type { DailyActivity, UserSettings } from './storage'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
-
-const secondsToMinutes = (seconds: number): number => Math.round(seconds / 60)
-
-const formatMinutes = (seconds: number): string => `${secondsToMinutes(seconds)}m`
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
@@ -25,6 +22,7 @@ function App() {
 
   useEffect(() => {
     let isMounted = true
+    const refreshIntervalId = window.setInterval(refreshTodayActivity, 5_000)
 
     void Promise.all([getUserSettings(), getActivityForDate(new Date())]).then(
       ([loadedSettings, loadedTodayActivity]) => {
@@ -42,6 +40,7 @@ function App() {
 
     return () => {
       isMounted = false
+      window.clearInterval(refreshIntervalId)
     }
   }, [])
 
@@ -68,8 +67,11 @@ function App() {
     saveGoalMinutes(Number(dailyGoalMinutes))
   }
 
-  const currentGoalSeconds =
-    todayActivity?.goalSeconds ?? settings?.dailyGoalSeconds ?? 0
+  const goalProgress = getGoalProgress(todayActivity, settings)
+  const progressText =
+    goalProgress.goalSeconds > 0
+      ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
+      : 'Not set'
 
   return (
     <main className="app-shell dashboard-shell">
@@ -94,13 +96,27 @@ function App() {
         </article>
         <article>
           <span className="metric-label">Goal</span>
-          <strong>{currentGoalSeconds > 0 ? formatMinutes(currentGoalSeconds) : 'Not set'}</strong>
-          <span>{todayActivity?.goalCompleted ? 'Completed today' : 'Daily learning target'}</span>
+          <strong>{progressText}</strong>
+          <span>{goalProgress.isComplete ? 'Completed today' : 'Daily learning target'}</span>
         </article>
       </section>
 
       <section className="panel">
         <h2>Daily Goal</h2>
+        <div className="goal-progress" aria-label="Today goal progress">
+          <div className="goal-progress-header">
+            <span>Today</span>
+            <strong>{progressText}</strong>
+          </div>
+          <div className="progress-track" aria-hidden="true">
+            <span style={{ width: `${goalProgress.visualPercentage}%` }} />
+          </div>
+          <p className="projection-line">
+            {goalProgress.isComplete
+              ? 'Goal complete'
+              : `${formatMinutes(goalProgress.remainingSeconds)} remaining`}
+          </p>
+        </div>
         <div className="dashboard-goal-row">
           <div className="goal-control" role="group" aria-label="Daily goal presets">
             <div className="segmented-control">

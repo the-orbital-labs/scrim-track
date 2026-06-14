@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import '../App.css'
+import { getActivityForDate } from '../activity'
+import { formatMinutes, getGoalProgress, secondsToMinutes } from '../goalProgress'
 import {
   getPathProgress,
   saveAverageWindowDays,
@@ -15,7 +17,12 @@ import {
   saveTimezone,
   saveTrackingEnabled,
 } from '../settings'
-import type { AverageWindowDays, PathProgress, UserSettings } from '../storage'
+import type {
+  AverageWindowDays,
+  DailyActivity,
+  PathProgress,
+  UserSettings,
+} from '../storage'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -28,13 +35,12 @@ const openDashboard = () => {
   window.location.href = '/dashboard.html'
 }
 
-const secondsToMinutes = (seconds: number): number => Math.round(seconds / 60)
-
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
 
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
+  const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
@@ -53,16 +59,27 @@ function Popup() {
     })
   }
 
+  const refreshTodayActivity = () => {
+    void getActivityForDate(new Date()).then(setTodayActivity)
+  }
+
   useEffect(() => {
     let isMounted = true
+    const refreshIntervalId = window.setInterval(refreshTodayActivity, 5_000)
 
-    void Promise.all([getUserSettings(), getPathProgress(), getPathProjection()]).then(
-      ([loadedSettings, loadedPathProgress, projection]) => {
+    void Promise.all([
+      getUserSettings(),
+      getActivityForDate(new Date()),
+      getPathProgress(),
+      getPathProjection(),
+    ]).then(
+      ([loadedSettings, loadedTodayActivity, loadedPathProgress, projection]) => {
         if (!isMounted) {
           return
         }
 
         setSettings(loadedSettings)
+        setTodayActivity(loadedTodayActivity)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setDailyGoalMinutes(
@@ -80,6 +97,7 @@ function Popup() {
 
     return () => {
       isMounted = false
+      window.clearInterval(refreshIntervalId)
     }
   }, [])
 
@@ -102,7 +120,10 @@ function Popup() {
 
     setDailyGoalError(null)
     setDailyGoalMinutes(String(minutes))
-    void saveDailyGoal(minutes * 60).then(setSettings).catch(() => {
+    void saveDailyGoal(minutes * 60).then((nextSettings) => {
+      setSettings(nextSettings)
+      refreshTodayActivity()
+    }).catch(() => {
       setDailyGoalError('Enter 1-1440 minutes.')
     })
   }
@@ -146,6 +167,12 @@ function Popup() {
     void saveTrackingEnabled(!settings.trackingEnabled).then(setSettings)
   }
 
+  const goalProgress = getGoalProgress(todayActivity, settings)
+  const progressText =
+    goalProgress.goalSeconds > 0
+      ? `${formatMinutes(goalProgress.activeSeconds)} / ${formatMinutes(goalProgress.goalSeconds)}`
+      : 'Not set'
+
   return (
     <main className="popup-shell" aria-label="Scrimba Learning Tracker popup">
       <div>
@@ -157,6 +184,21 @@ function Popup() {
       </div>
 
       <section className="settings-panel" aria-label="Tracking settings">
+        <div className="goal-progress" aria-label="Today goal progress">
+          <div className="goal-progress-header">
+            <span>Today</span>
+            <strong>{progressText}</strong>
+          </div>
+          <div className="progress-track" aria-hidden="true">
+            <span style={{ width: `${goalProgress.visualPercentage}%` }} />
+          </div>
+          <p className="projection-line">
+            {goalProgress.isComplete
+              ? 'Goal complete'
+              : `${formatMinutes(goalProgress.remainingSeconds)} remaining`}
+          </p>
+        </div>
+
         <label className="toggle-row">
           <span>Tracking</span>
           <input
