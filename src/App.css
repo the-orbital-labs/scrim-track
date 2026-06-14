@@ -321,6 +321,7 @@
 }
 
 .mini-heatmap-cell {
+  position: relative;
   width: 9px;
   height: 9px;
   border: 1px solid transparent;
@@ -413,12 +414,53 @@
 }
 
 .dashboard-heatmap-cell {
+  position: relative;
   display: inline-block;
   width: 13px;
   height: 13px;
   border: 1px solid transparent;
   border-radius: 2px;
   background: var(--heatmap-0);
+}
+
+.heatmap-tooltip-trigger {
+  cursor: default;
+}
+
+.heatmap-tooltip-trigger:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.heatmap-tooltip {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: none;
+  width: max-content;
+  max-width: 220px;
+  transform: translateX(-50%);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.heatmap-tooltip span {
+  display: block;
+}
+
+.heatmap-tooltip-trigger:hover .heatmap-tooltip,
+.heatmap-tooltip-trigger:focus-visible .heatmap-tooltip {
+  display: block;
 }
 
 .dashboard-heatmap-cell.is-today {

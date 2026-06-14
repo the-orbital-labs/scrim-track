@@ -3,7 +3,8 @@ import '../App.css'
 import { getActivityForDate } from '../activity'
 import { formatMinutes, getGoalProgress, secondsToMinutes } from '../goalProgress'
 import { getPopupHeatmapGrid } from '../heatmap'
-import type { HeatmapDay, HeatmapGrid } from '../heatmap'
+import type { HeatmapGrid } from '../heatmap'
+import { getHeatmapTooltipLines, getHeatmapTooltipText } from '../heatmapTooltip'
 import {
   getPathProgress,
   saveAverageWindowDays,
@@ -42,16 +43,6 @@ const openDashboard = () => {
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
-
-const getHeatmapDayTitle = (day: HeatmapDay): string => {
-  const minutes = formatMinutes(day.activeSeconds)
-
-  if (day.isFuture) {
-    return `${day.date}: future day`
-  }
-
-  return `${day.date}: ${minutes}${day.goalCompleted ? ', goal complete' : ''}`
-}
 
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
@@ -253,15 +244,23 @@ function Popup() {
                 {week.days.map((day) => (
                   <span
                     key={day.date}
+                    tabIndex={0}
                     className={[
                       'mini-heatmap-cell',
+                      'heatmap-tooltip-trigger',
                       `heatmap-level-${day.intensity}`,
                       day.isToday ? 'is-today' : '',
                       day.isFuture ? 'is-future' : '',
                     ].filter(Boolean).join(' ')}
-                    title={getHeatmapDayTitle(day)}
-                    aria-label={getHeatmapDayTitle(day)}
-                  />
+                    title={getHeatmapTooltipText(day)}
+                    aria-label={getHeatmapTooltipText(day)}
+                  >
+                    <span className="heatmap-tooltip" role="tooltip">
+                      {getHeatmapTooltipLines(day).map((line) => (
+                        <span key={line}>{line}</span>
+                      ))}
+                    </span>
+                  </span>
                 ))}
               </div>
             ))}

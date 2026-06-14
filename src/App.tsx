@@ -3,7 +3,8 @@ import './App.css'
 import { getActivityForDate } from './activity'
 import { formatMinutes, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getDashboardHeatmapGrid } from './heatmap'
-import type { HeatmapDay, HeatmapGrid, HeatmapWeek } from './heatmap'
+import type { HeatmapGrid, HeatmapWeek } from './heatmap'
+import { getHeatmapTooltipLines, getHeatmapTooltipText } from './heatmapTooltip'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type { DailyActivity, StreakStatus, UserSettings } from './storage'
@@ -30,16 +31,6 @@ const getMonthLabel = (week: HeatmapWeek): string => {
   })
 
   return firstMonthDay ? monthFormatter.format(parseLocalDateKey(firstMonthDay.date)) : ''
-}
-
-const getHeatmapDayTitle = (day: HeatmapDay): string => {
-  if (day.isFuture) {
-    return `${day.date}: future day`
-  }
-
-  const goalStatus = day.goalCompleted ? 'goal complete' : 'goal not complete'
-
-  return `${day.date}: ${formatMinutes(day.activeSeconds)}, ${goalStatus}`
 }
 
 function App() {
@@ -244,15 +235,23 @@ function App() {
                   {week.days.map((day) => (
                     <span
                       key={day.date}
+                      tabIndex={0}
                       className={[
                         'dashboard-heatmap-cell',
+                        'heatmap-tooltip-trigger',
                         `heatmap-level-${day.intensity}`,
                         day.isToday ? 'is-today' : '',
                         day.isFuture || day.isOutsideRange ? 'is-muted' : '',
                       ].filter(Boolean).join(' ')}
-                      title={getHeatmapDayTitle(day)}
-                      aria-label={getHeatmapDayTitle(day)}
-                    />
+                      title={getHeatmapTooltipText(day)}
+                      aria-label={getHeatmapTooltipText(day)}
+                    >
+                      <span className="heatmap-tooltip" role="tooltip">
+                        {getHeatmapTooltipLines(day).map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                      </span>
+                    </span>
                   ))}
                 </div>
               ))}
