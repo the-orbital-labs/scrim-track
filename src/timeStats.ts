@@ -8,6 +8,14 @@ export type WeeklyTimeStats = {
   startDate: string
 }
 
+export type MonthlyTimeStats = {
+  activeDays: number
+  activeSeconds: number
+  dayCount: number
+  endDate: string
+  startDate: string
+}
+
 export const getWeekStart = (date: Date = new Date()): Date => {
   const weekStart = new Date(date)
 
@@ -16,6 +24,9 @@ export const getWeekStart = (date: Date = new Date()): Date => {
 
   return weekStart
 }
+
+export const getMonthStart = (date: Date = new Date()): Date =>
+  new Date(date.getFullYear(), date.getMonth(), 1)
 
 export const getCurrentWeekTimeStats = async (
   today: Date = new Date(),
@@ -34,6 +45,25 @@ export const getCurrentWeekTimeStats = async (
       dayCount > 0 ? Math.floor(activeSeconds / dayCount) : 0,
     dayCount,
     startDate: getLocalDateKey(weekStart),
+    endDate: getLocalDateKey(today),
+  }
+}
+
+export const getCurrentMonthTimeStats = async (
+  today: Date = new Date(),
+): Promise<MonthlyTimeStats> => {
+  const monthStart = getMonthStart(today)
+  const activities = await getActivityForDateRange(monthStart, today)
+  const activeSeconds = activities.reduce(
+    (total, activity) => total + activity.activeSeconds,
+    0,
+  )
+
+  return {
+    activeDays: activities.filter((activity) => activity.activeSeconds > 0).length,
+    activeSeconds,
+    dayCount: activities.length,
+    startDate: getLocalDateKey(monthStart),
     endDate: getLocalDateKey(today),
   }
 }

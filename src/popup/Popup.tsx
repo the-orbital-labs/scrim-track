@@ -29,8 +29,8 @@ import type {
   UserSettings,
 } from '../storage'
 import { getStreakDisplayState } from '../streakDisplay'
-import { getCurrentWeekTimeStats } from '../timeStats'
-import type { WeeklyTimeStats } from '../timeStats'
+import { getCurrentMonthTimeStats, getCurrentWeekTimeStats } from '../timeStats'
+import type { MonthlyTimeStats, WeeklyTimeStats } from '../timeStats'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -52,6 +52,7 @@ function Popup() {
   const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
   const [heatmapGrid, setHeatmapGrid] = useState<HeatmapGrid | null>(null)
   const [weeklyTimeStats, setWeeklyTimeStats] = useState<WeeklyTimeStats | null>(null)
+  const [monthlyTimeStats, setMonthlyTimeStats] = useState<MonthlyTimeStats | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
@@ -76,11 +77,13 @@ function Popup() {
       getStorageValue('streakStatus'),
       getPopupHeatmapGrid(),
       getCurrentWeekTimeStats(),
-    ]).then(([activity, streak, heatmap, weekStats]) => {
+      getCurrentMonthTimeStats(),
+    ]).then(([activity, streak, heatmap, weekStats, monthStats]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
       setHeatmapGrid(heatmap)
       setWeeklyTimeStats(weekStats)
+      setMonthlyTimeStats(monthStats)
     })
   }
 
@@ -94,6 +97,7 @@ function Popup() {
       getStorageValue('streakStatus'),
       getPopupHeatmapGrid(),
       getCurrentWeekTimeStats(),
+      getCurrentMonthTimeStats(),
       getPathProgress(),
       getPathProjection(),
     ]).then(
@@ -103,6 +107,7 @@ function Popup() {
         loadedStreakStatus,
         loadedHeatmapGrid,
         loadedWeeklyTimeStats,
+        loadedMonthlyTimeStats,
         loadedPathProgress,
         projection,
       ]) => {
@@ -115,6 +120,7 @@ function Popup() {
         setStreakStatus(loadedStreakStatus)
         setHeatmapGrid(loadedHeatmapGrid)
         setWeeklyTimeStats(loadedWeeklyTimeStats)
+        setMonthlyTimeStats(loadedMonthlyTimeStats)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setDailyGoalMinutes(
@@ -212,6 +218,8 @@ function Popup() {
   const weeklyAverageText = `${formatActiveTime(
     weeklyTimeStats?.averageSecondsPerDay ?? 0,
   )} avg/day`
+  const monthlyActiveTime = formatActiveTime(monthlyTimeStats?.activeSeconds ?? 0)
+  const monthlyActiveDaysText = `${monthlyTimeStats?.activeDays ?? 0} active days`
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
@@ -240,6 +248,11 @@ function Popup() {
             <span>This week</span>
             <strong>{weeklyActiveTime}</strong>
             <small>{weeklyAverageText}</small>
+          </div>
+          <div className="time-stat-row" aria-label="This month's active learning time">
+            <span>This month</span>
+            <strong>{monthlyActiveTime}</strong>
+            <small>{monthlyActiveDaysText}</small>
           </div>
         </div>
 
