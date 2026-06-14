@@ -1,4 +1,5 @@
 import { getActivityForDateRange, getLocalDateKey } from './activity'
+import { getStorageValue } from './storage'
 
 export type WeeklyTimeStats = {
   activeSeconds: number
@@ -14,6 +15,12 @@ export type MonthlyTimeStats = {
   dayCount: number
   endDate: string
   startDate: string
+}
+
+export type AllTimeStats = {
+  activeDays: number
+  activeSeconds: number
+  dayCount: number
 }
 
 export const getWeekStart = (date: Date = new Date()): Date => {
@@ -46,6 +53,20 @@ export const getCurrentWeekTimeStats = async (
     dayCount,
     startDate: getLocalDateKey(weekStart),
     endDate: getLocalDateKey(today),
+  }
+}
+
+export const getAllTimeStats = async (): Promise<AllTimeStats> => {
+  const activities = Object.values(await getStorageValue('dailyActivities'))
+  const activeSeconds = activities.reduce(
+    (total, activity) => total + activity.activeSeconds,
+    0,
+  )
+
+  return {
+    activeDays: activities.filter((activity) => activity.activeSeconds > 0).length,
+    activeSeconds,
+    dayCount: activities.length,
   }
 }
 
