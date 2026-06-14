@@ -41,7 +41,7 @@
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -254,10 +254,16 @@
   border-left-color: var(--accent);
 }
 
-.today-time-row {
+.time-stat-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.time-stat-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -268,11 +274,18 @@
   font-weight: 700;
 }
 
-.today-time-row strong {
+.time-stat-row strong {
   color: var(--text-h);
   font-size: 20px;
   line-height: 1;
   white-space: nowrap;
+}
+
+.time-stat-row small {
+  flex: 0 0 100%;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .goal-progress {

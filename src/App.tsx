@@ -9,6 +9,8 @@ import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type { DailyActivity, StreakStatus, UserSettings } from './storage'
 import { getStreakDisplayState } from './streakDisplay'
+import { getCurrentWeekTimeStats } from './timeStats'
+import type { WeeklyTimeStats } from './timeStats'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -38,6 +40,7 @@ function App() {
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
   const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
   const [heatmapGrid, setHeatmapGrid] = useState<HeatmapGrid | null>(null)
+  const [weeklyTimeStats, setWeeklyTimeStats] = useState<WeeklyTimeStats | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
@@ -46,10 +49,12 @@ function App() {
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
       getDashboardHeatmapGrid(),
-    ]).then(([activity, streak, heatmap]) => {
+      getCurrentWeekTimeStats(),
+    ]).then(([activity, streak, heatmap, weekStats]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
       setHeatmapGrid(heatmap)
+      setWeeklyTimeStats(weekStats)
     })
   }
 
@@ -62,12 +67,14 @@ function App() {
       getActivityForDate(new Date()),
       getStorageValue('streakStatus'),
       getDashboardHeatmapGrid(),
+      getCurrentWeekTimeStats(),
     ]).then(
       ([
         loadedSettings,
         loadedTodayActivity,
         loadedStreakStatus,
         loadedHeatmapGrid,
+        loadedWeeklyTimeStats,
       ]) => {
         if (!isMounted) {
           return
@@ -77,6 +84,7 @@ function App() {
         setTodayActivity(loadedTodayActivity)
         setStreakStatus(loadedStreakStatus)
         setHeatmapGrid(loadedHeatmapGrid)
+        setWeeklyTimeStats(loadedWeeklyTimeStats)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -117,6 +125,9 @@ function App() {
     goalProgress.goalSeconds > 0
       ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
       : 'Not set'
+  const weeklyAverageText = `${formatActiveTime(
+    weeklyTimeStats?.averageSecondsPerDay ?? 0,
+  )} avg/day`
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
   const activeHeatmapDays =
     heatmapGrid?.weeks
@@ -138,6 +149,11 @@ function App() {
           <span className="metric-label">Today</span>
           <strong>{formatActiveTime(todayActivity?.activeSeconds ?? 0)}</strong>
           <span>Active Scrimba time</span>
+        </article>
+        <article>
+          <span className="metric-label">This week</span>
+          <strong>{formatActiveTime(weeklyTimeStats?.activeSeconds ?? 0)}</strong>
+          <span>{weeklyAverageText}</span>
         </article>
         <article>
           <span className="metric-label">Streak</span>
