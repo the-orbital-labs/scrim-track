@@ -255,11 +255,15 @@ function Popup() {
   }
 
   const goalProgress = getGoalProgress(todayActivity, settings)
-  const progressText =
-    goalProgress.goalSeconds > 0
-      ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
-      : 'Not set'
   const todayActiveTime = formatActiveTime(todayActivity?.activeSeconds ?? 0)
+  const todayGoalTime =
+    goalProgress.goalSeconds > 0 ? formatActiveTime(goalProgress.goalSeconds) : 'Not set'
+  const todayProgressState =
+    goalProgress.goalSeconds === 0
+      ? 'Set a daily goal to track progress'
+      : goalProgress.isComplete
+        ? 'Goal complete'
+        : `${formatActiveTime(goalProgress.remainingSeconds)} remaining`
   const weeklyActiveTime = formatActiveTime(weeklyTimeStats?.activeSeconds ?? 0)
   const weeklyAverageText = `${formatActiveTime(
     weeklyTimeStats?.averageSecondsPerDay ?? 0,
@@ -282,22 +286,44 @@ function Popup() {
         </span>
       </header>
 
-      <section className="popup-today-card" aria-label="Today's progress">
+      <section
+        className={[
+          'popup-today-card',
+          goalProgress.isComplete ? 'is-complete' : '',
+        ].filter(Boolean).join(' ')}
+        aria-label="Today's progress"
+      >
+        <div className="popup-today-header">
+          <span>Today's progress</span>
+          {goalProgress.isComplete ? (
+            <span
+              aria-label="Goal completed"
+              className="today-goal-check"
+              role="img"
+            />
+          ) : null}
+        </div>
+
+        <div className="popup-today-metrics">
+          <span>
+            Active
+            <strong>{todayActiveTime}</strong>
+          </span>
+          <span>
+            Goal
+            <strong>{todayGoalTime}</strong>
+          </span>
+        </div>
+
         <div className="goal-progress" aria-label="Today goal progress">
           <div className="goal-progress-header">
-            <span>Today</span>
-            <strong>{progressText}</strong>
+            <span>{todayProgressState}</span>
+            <strong>{goalProgress.percentage}%</strong>
           </div>
           <div className="progress-track" aria-hidden="true">
             <span style={{ width: `${goalProgress.visualPercentage}%` }} />
           </div>
-          <p className="projection-line">
-            {goalProgress.isComplete
-              ? 'Goal complete'
-              : `${formatActiveTime(goalProgress.remainingSeconds)} remaining`}
-          </p>
         </div>
-        <strong>{todayActiveTime}</strong>
       </section>
 
       <section className="popup-status-grid" aria-label="Current status">

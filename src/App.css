@@ -227,10 +227,66 @@
   padding: 12px;
 }
 
-.popup-today-card > strong {
+.popup-today-card.is-complete {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+}
+
+.popup-today-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.today-goal-check {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--success);
+}
+
+.today-goal-check::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 7px;
+  width: 7px;
+  height: 4px;
+  border-bottom: 2px solid white;
+  border-left: 2px solid white;
+  transform: rotate(-45deg);
+}
+
+.popup-today-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.popup-today-metrics span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.popup-today-metrics strong {
   color: var(--text-h);
   font-size: 24px;
   line-height: 1;
+}
+
+.popup-today-card.is-complete .goal-progress-header span,
+.popup-today-card.is-complete .goal-progress-header strong {
+  color: var(--success);
 }
 
 .popup-status-grid {
