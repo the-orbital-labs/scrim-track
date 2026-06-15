@@ -17,7 +17,13 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from '../pathProgress'
-import { formatHoursPerDay, formatPathHours, getPathProjection } from '../projection'
+import {
+  formatHoursPerDay,
+  formatPathHours,
+  getFinishEstimateText,
+  getPathProjection,
+} from '../projection'
+import type { PathProjection } from '../projection'
 import {
   getUserSettings,
   saveDailyGoal,
@@ -64,7 +70,7 @@ function Popup() {
   const [monthlyTimeStats, setMonthlyTimeStats] = useState<MonthlyTimeStats | null>(null)
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
-  const [finishDate, setFinishDate] = useState<string | null>(null)
+  const [finishDateText, setFinishDateText] = useState('Study on Scrimba to estimate')
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
   const [completedHours, setCompletedHours] = useState(0)
   const [remainingHours, setRemainingHours] = useState(0)
@@ -81,11 +87,15 @@ function Popup() {
 
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
-      setFinishDate(projection.finishDate)
-      setAveragePaceSeconds(projection.averageDailySeconds)
-      setCompletedHours(projection.completedHours)
-      setRemainingHours(projection.remainingHours)
+      syncProjection(projection)
     })
+  }
+
+  const syncProjection = (projection: PathProjection) => {
+    setFinishDateText(getFinishEstimateText(projection))
+    setAveragePaceSeconds(projection.averageDailySeconds)
+    setCompletedHours(projection.completedHours)
+    setRemainingHours(projection.remainingHours)
   }
 
   const refreshTodayActivity = () => {
@@ -96,13 +106,15 @@ function Popup() {
       getCurrentWeekTimeStats(),
       getCurrentMonthTimeStats(),
       getAllTimeStats(),
-    ]).then(([activity, streak, heatmap, weekStats, monthStats, allStats]) => {
+      getPathProjection(),
+    ]).then(([activity, streak, heatmap, weekStats, monthStats, allStats, projection]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
       setHeatmapGrid(heatmap)
       setWeeklyTimeStats(weekStats)
       setMonthlyTimeStats(monthStats)
       setAllTimeStats(allStats)
+      syncProjection(projection)
     })
   }
 
@@ -144,10 +156,7 @@ function Popup() {
         setMonthlyTimeStats(loadedMonthlyTimeStats)
         setAllTimeStats(loadedAllTimeStats)
         setPathProgress(loadedPathProgress)
-        setFinishDate(projection.finishDate)
-        setAveragePaceSeconds(projection.averageDailySeconds)
-        setCompletedHours(projection.completedHours)
-        setRemainingHours(projection.remainingHours)
+        syncProjection(projection)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -494,7 +503,7 @@ function Popup() {
         </label>
 
         <p className="projection-line">
-          {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
+          Finish estimate {finishDateText}
         </p>
         <p className="projection-line">
           Remaining {remainingHoursText} - Completed {completedHoursText}

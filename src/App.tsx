@@ -17,7 +17,13 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from './pathProgress'
-import { formatHoursPerDay, formatPathHours, getPathProjection } from './projection'
+import {
+  formatHoursPerDay,
+  formatPathHours,
+  getFinishEstimateText,
+  getPathProjection,
+} from './projection'
+import type { PathProjection } from './projection'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type {
@@ -73,7 +79,7 @@ function App() {
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null)
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
-  const [finishDate, setFinishDate] = useState<string | null>(null)
+  const [finishDateText, setFinishDateText] = useState('Study on Scrimba to estimate')
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
   const [completedHours, setCompletedHours] = useState(0)
   const [remainingHours, setRemainingHours] = useState(0)
@@ -94,6 +100,7 @@ function App() {
       getAllTimeStats(),
       getCurrentWeekSummary(),
       getCurrentMonthSummary(),
+      getPathProjection(),
     ]).then(
       ([
         activity,
@@ -104,6 +111,7 @@ function App() {
         allStats,
         summary,
         monthSummary,
+        projection,
       ]) => {
         setTodayActivity(activity)
         setStreakStatus(streak)
@@ -113,6 +121,7 @@ function App() {
         setAllTimeStats(allStats)
         setWeeklySummary(summary)
         setMonthlySummary(monthSummary)
+        syncProjection(projection)
       },
     )
   }
@@ -161,10 +170,7 @@ function App() {
         setWeeklySummary(loadedWeeklySummary)
         setMonthlySummary(loadedMonthlySummary)
         setPathProgress(loadedPathProgress)
-        setFinishDate(projection.finishDate)
-        setAveragePaceSeconds(projection.averageDailySeconds)
-        setCompletedHours(projection.completedHours)
-        setRemainingHours(projection.remainingHours)
+        syncProjection(projection)
         setPathName(loadedPathProgress.pathName)
         setTotalEstimatedHours(String(loadedPathProgress.totalEstimatedHours))
         setProgressPercentage(String(loadedPathProgress.progressPercentage))
@@ -205,11 +211,15 @@ function App() {
 
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
-      setFinishDate(projection.finishDate)
-      setAveragePaceSeconds(projection.averageDailySeconds)
-      setCompletedHours(projection.completedHours)
-      setRemainingHours(projection.remainingHours)
+      syncProjection(projection)
     })
+  }
+
+  const syncProjection = (projection: PathProjection) => {
+    setFinishDateText(getFinishEstimateText(projection))
+    setAveragePaceSeconds(projection.averageDailySeconds)
+    setCompletedHours(projection.completedHours)
+    setRemainingHours(projection.remainingHours)
   }
 
   const syncPathProgress = (nextPathProgress: PathProgress) => {
@@ -478,7 +488,7 @@ function App() {
           </span>
           <span>
             Projected finish
-            <strong>{finishDate ?? 'Pending'}</strong>
+            <strong>{finishDateText}</strong>
           </span>
         </div>
         {pathError ? <span className="error-text">{pathError}</span> : null}

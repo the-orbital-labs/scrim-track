@@ -6,8 +6,11 @@ import type { AverageWindowDays } from './storage'
 export type PathProjection = {
   averageDailySeconds: number
   completedHours: number
+  daysRemaining: number | null
   finishDate: string | null
+  finishDateLabel: string | null
   pace: AveragePace
+  projectionMessage: string
   remainingHours: number
 }
 
@@ -26,6 +29,11 @@ export type PathHourEstimate = {
 }
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
+const finishDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
 
 export const formatHoursPerDay = (secondsPerDay: number): string => {
   const hoursPerDay = Math.max(0, secondsPerDay) / 60 / 60
@@ -53,6 +61,17 @@ export const formatPathHours = (hours: number): string => {
   }
 
   return `${Number(normalizedHours.toFixed(normalizedHours < 10 ? 1 : 0))}h`
+}
+
+export const formatFinishDate = (dateKey: string): string =>
+  finishDateFormatter.format(parseLocalDateKey(dateKey))
+
+export const getFinishEstimateText = (projection: PathProjection): string => {
+  if (projection.daysRemaining === 0) {
+    return projection.projectionMessage
+  }
+
+  return projection.finishDateLabel ?? projection.projectionMessage
 }
 
 export const calculatePathHourEstimate = (
@@ -154,11 +173,16 @@ export const getPathProjection = async (
   )
 
   if (remainingHours <= 0) {
+    const finishDate = getLocalDateKey(today)
+
     return {
       averageDailySeconds: 0,
       completedHours,
-      finishDate: getLocalDateKey(today),
+      daysRemaining: 0,
+      finishDate,
+      finishDateLabel: formatFinishDate(finishDate),
       pace,
+      projectionMessage: 'Path complete',
       remainingHours: 0,
     }
   }
@@ -169,20 +193,27 @@ export const getPathProjection = async (
     return {
       averageDailySeconds: 0,
       completedHours,
+      daysRemaining: null,
       finishDate: null,
+      finishDateLabel: null,
       pace,
+      projectionMessage: 'Study on Scrimba to estimate',
       remainingHours,
     }
   }
 
   const daysRemaining = Math.ceil((remainingHours * 60 * 60) / averageDailySeconds)
   const finishDate = new Date(today.getTime() + daysRemaining * dayInMilliseconds)
+  const finishDateKey = getLocalDateKey(finishDate)
 
   return {
     averageDailySeconds,
     completedHours,
-    finishDate: getLocalDateKey(finishDate),
+    daysRemaining,
+    finishDate: finishDateKey,
+    finishDateLabel: formatFinishDate(finishDateKey),
     pace,
+    projectionMessage: `Estimated finish ${formatFinishDate(finishDateKey)}`,
     remainingHours,
   }
 }
