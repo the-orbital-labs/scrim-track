@@ -17,7 +17,7 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from '../pathProgress'
-import { formatHoursPerDay, getPathProjection } from '../projection'
+import { formatHoursPerDay, formatPathHours, getPathProjection } from '../projection'
 import {
   getUserSettings,
   saveDailyGoal,
@@ -66,6 +66,8 @@ function Popup() {
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
+  const [completedHours, setCompletedHours] = useState(0)
+  const [remainingHours, setRemainingHours] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('2')
   const [timezone, setTimezone] = useState(
@@ -81,6 +83,8 @@ function Popup() {
     void getPathProjection().then((projection) => {
       setFinishDate(projection.finishDate)
       setAveragePaceSeconds(projection.averageDailySeconds)
+      setCompletedHours(projection.completedHours)
+      setRemainingHours(projection.remainingHours)
     })
   }
 
@@ -142,6 +146,8 @@ function Popup() {
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setAveragePaceSeconds(projection.averageDailySeconds)
+        setCompletedHours(projection.completedHours)
+        setRemainingHours(projection.remainingHours)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -270,6 +276,9 @@ function Popup() {
   const allTimeActiveTime = formatActiveTime(allTimeStats?.activeSeconds ?? 0)
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
   const averagePaceText = formatHoursPerDay(averagePaceSeconds)
+  const completedHoursText = formatPathHours(completedHours)
+  const remainingHoursText =
+    remainingHours <= 0 ? 'Path complete' : formatPathHours(remainingHours)
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
@@ -486,6 +495,9 @@ function Popup() {
 
         <p className="projection-line">
           {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
+        </p>
+        <p className="projection-line">
+          Remaining {remainingHoursText} - Completed {completedHoursText}
         </p>
         <p className="projection-line">Average pace {averagePaceText}</p>
         {pathError ? <span className="error-text">{pathError}</span> : null}

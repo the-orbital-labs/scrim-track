@@ -17,7 +17,7 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from './pathProgress'
-import { formatHoursPerDay, getPathProjection } from './projection'
+import { formatHoursPerDay, formatPathHours, getPathProjection } from './projection'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type {
@@ -75,6 +75,8 @@ function App() {
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
+  const [completedHours, setCompletedHours] = useState(0)
+  const [remainingHours, setRemainingHours] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
   const [pathName, setPathName] = useState('')
@@ -161,6 +163,8 @@ function App() {
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
         setAveragePaceSeconds(projection.averageDailySeconds)
+        setCompletedHours(projection.completedHours)
+        setRemainingHours(projection.remainingHours)
         setPathName(loadedPathProgress.pathName)
         setTotalEstimatedHours(String(loadedPathProgress.totalEstimatedHours))
         setProgressPercentage(String(loadedPathProgress.progressPercentage))
@@ -203,6 +207,8 @@ function App() {
     void getPathProjection().then((projection) => {
       setFinishDate(projection.finishDate)
       setAveragePaceSeconds(projection.averageDailySeconds)
+      setCompletedHours(projection.completedHours)
+      setRemainingHours(projection.remainingHours)
     })
   }
 
@@ -276,6 +282,9 @@ function App() {
     ? `${pathProgress.pathName} - ${pathProgress.progressPercentage}% complete`
     : 'No path set'
   const averagePaceText = formatHoursPerDay(averagePaceSeconds)
+  const completedHoursText = formatPathHours(completedHours)
+  const remainingHoursText =
+    remainingHours <= 0 ? 'Path complete' : formatPathHours(remainingHours)
   const weeklyComparisonDifference = Math.abs(
     weeklySummary?.comparisonSeconds ?? 0,
   )
@@ -455,6 +464,14 @@ function App() {
         </div>
 
         <div className="path-setup-stats">
+          <span>
+            Remaining
+            <strong>{remainingHoursText}</strong>
+          </span>
+          <span>
+            Completed
+            <strong>{completedHoursText}</strong>
+          </span>
           <span>
             Average pace
             <strong>{averagePaceText}</strong>

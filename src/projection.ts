@@ -5,6 +5,7 @@ import type { AverageWindowDays } from './storage'
 
 export type PathProjection = {
   averageDailySeconds: number
+  completedHours: number
   finishDate: string | null
   pace: AveragePace
   remainingHours: number
@@ -17,6 +18,11 @@ export type AveragePace = {
   totalActiveSeconds: number
   windowDays: AverageWindowDays
   windowStartDate: string | null
+}
+
+export type PathHourEstimate = {
+  completedHours: number
+  remainingHours: number
 }
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
@@ -33,6 +39,35 @@ export const formatHoursPerDay = (secondsPerDay: number): string => {
   }
 
   return `${Number(hoursPerDay.toFixed(hoursPerDay < 10 ? 1 : 0))}h/day`
+}
+
+export const formatPathHours = (hours: number): string => {
+  const normalizedHours = Math.max(0, hours)
+
+  if (normalizedHours === 0) {
+    return '0h'
+  }
+
+  if (normalizedHours < 0.1) {
+    return '<0.1h'
+  }
+
+  return `${Number(normalizedHours.toFixed(normalizedHours < 10 ? 1 : 0))}h`
+}
+
+export const calculatePathHourEstimate = (
+  totalEstimatedHours: number,
+  progressPercentage: number,
+): PathHourEstimate => {
+  const totalHours = Math.max(0, totalEstimatedHours)
+  const progress = Math.min(100, Math.max(0, progressPercentage))
+  const completedHours = Math.min(totalHours, totalHours * (progress / 100))
+  const remainingHours = Math.max(0, totalHours - completedHours)
+
+  return {
+    completedHours,
+    remainingHours,
+  }
 }
 
 const parseLocalDateKey = (dateKey: string): Date => {
@@ -113,13 +148,15 @@ export const getPathProjection = async (
 ): Promise<PathProjection> => {
   const pathProgress = await getPathProgress()
   const pace = await getAveragePace(today)
-  const remainingHours =
-    pathProgress.totalEstimatedHours *
-    (1 - pathProgress.progressPercentage / 100)
+  const { completedHours, remainingHours } = calculatePathHourEstimate(
+    pathProgress.totalEstimatedHours,
+    pathProgress.progressPercentage,
+  )
 
   if (remainingHours <= 0) {
     return {
       averageDailySeconds: 0,
+      completedHours,
       finishDate: getLocalDateKey(today),
       pace,
       remainingHours: 0,
@@ -131,6 +168,7 @@ export const getPathProjection = async (
   if (averageDailySeconds <= 0) {
     return {
       averageDailySeconds: 0,
+      completedHours,
       finishDate: null,
       pace,
       remainingHours,
@@ -142,6 +180,7 @@ export const getPathProjection = async (
 
   return {
     averageDailySeconds,
+    completedHours,
     finishDate: getLocalDateKey(finishDate),
     pace,
     remainingHours,
