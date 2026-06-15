@@ -15,6 +15,8 @@ import {
   getCurrentWeekTimeStats,
 } from './timeStats'
 import type { AllTimeStats, MonthlyTimeStats, WeeklyTimeStats } from './timeStats'
+import { getCurrentWeekSummary } from './weeklySummary'
+import type { WeeklySummary } from './weeklySummary'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -47,6 +49,7 @@ function App() {
   const [weeklyTimeStats, setWeeklyTimeStats] = useState<WeeklyTimeStats | null>(null)
   const [monthlyTimeStats, setMonthlyTimeStats] = useState<MonthlyTimeStats | null>(null)
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
@@ -58,14 +61,26 @@ function App() {
       getCurrentWeekTimeStats(),
       getCurrentMonthTimeStats(),
       getAllTimeStats(),
-    ]).then(([activity, streak, heatmap, weekStats, monthStats, allStats]) => {
-      setTodayActivity(activity)
-      setStreakStatus(streak)
-      setHeatmapGrid(heatmap)
-      setWeeklyTimeStats(weekStats)
-      setMonthlyTimeStats(monthStats)
-      setAllTimeStats(allStats)
-    })
+      getCurrentWeekSummary(),
+    ]).then(
+      ([
+        activity,
+        streak,
+        heatmap,
+        weekStats,
+        monthStats,
+        allStats,
+        summary,
+      ]) => {
+        setTodayActivity(activity)
+        setStreakStatus(streak)
+        setHeatmapGrid(heatmap)
+        setWeeklyTimeStats(weekStats)
+        setMonthlyTimeStats(monthStats)
+        setAllTimeStats(allStats)
+        setWeeklySummary(summary)
+      },
+    )
   }
 
   useEffect(() => {
@@ -80,6 +95,7 @@ function App() {
       getCurrentWeekTimeStats(),
       getCurrentMonthTimeStats(),
       getAllTimeStats(),
+      getCurrentWeekSummary(),
     ]).then(
       ([
         loadedSettings,
@@ -89,6 +105,7 @@ function App() {
         loadedWeeklyTimeStats,
         loadedMonthlyTimeStats,
         loadedAllTimeStats,
+        loadedWeeklySummary,
       ]) => {
         if (!isMounted) {
           return
@@ -101,6 +118,7 @@ function App() {
         setWeeklyTimeStats(loadedWeeklyTimeStats)
         setMonthlyTimeStats(loadedMonthlyTimeStats)
         setAllTimeStats(loadedAllTimeStats)
+        setWeeklySummary(loadedWeeklySummary)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -146,6 +164,8 @@ function App() {
   )} avg/day`
   const monthlyActiveDaysText = `${monthlyTimeStats?.activeDays ?? 0} active days`
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
+  const weeklySummaryLines =
+    weeklySummary?.summaryText ?? ['Weekly summary is loading.']
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
   const activeHeatmapDays =
     heatmapGrid?.weeks
@@ -193,6 +213,28 @@ function App() {
           <strong>{progressText}</strong>
           <span>{goalProgress.isComplete ? 'Completed today' : 'Daily learning target'}</span>
         </article>
+      </section>
+
+      <section className="panel weekly-summary-panel" aria-label="Weekly summary">
+        <div className="panel-heading-row">
+          <h2>Weekly Summary</h2>
+          <span>{weeklySummary?.activeDays ?? 0} active days</span>
+        </div>
+        <ul className="weekly-summary-list">
+          {weeklySummaryLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <div className="weekly-summary-stats">
+          <span>
+            Daily average
+            <strong>{formatActiveTime(weeklySummary?.dailyAverageSeconds ?? 0)}</strong>
+          </span>
+          <span>
+            Last week
+            <strong>{formatActiveTime(weeklySummary?.previousWeekActiveSeconds ?? 0)}</strong>
+          </span>
+        </div>
       </section>
 
       <section className="panel">
