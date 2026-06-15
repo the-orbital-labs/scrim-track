@@ -182,10 +182,11 @@
 .popup-shell {
   box-sizing: border-box;
   display: grid;
-  gap: 18px;
-  width: 340px;
-  min-height: 560px;
-  padding: 18px;
+  gap: 12px;
+  width: 360px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 14px;
   background: var(--bg);
 }
 
@@ -194,8 +195,116 @@
   line-height: 1.1;
 }
 
+.popup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popup-header .status-pill {
+  margin-top: 2px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .muted {
   color: var(--muted);
+}
+
+.popup-today-card,
+.popup-projection,
+.popup-status-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.popup-today-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.popup-today-card > strong {
+  color: var(--text-h);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.popup-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.popup-status-card {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  padding: 12px;
+  border-left: 3px solid var(--border);
+}
+
+.popup-status-card span,
+.popup-status-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.popup-status-card strong {
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.popup-projection {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.popup-projection span,
+.popup-projection small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.popup-projection strong {
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.popup-settings-shortcut {
+  display: grid;
+  gap: 10px;
+}
+
+.popup-settings-shortcut summary {
+  min-height: 38px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-h);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.popup-settings-shortcut[open] summary {
+  margin-bottom: 10px;
+}
+
+.popup-settings-shortcut .settings-panel + .settings-panel {
+  margin-top: 10px;
 }
 
 .settings-panel {
@@ -394,6 +503,14 @@
 .mini-heatmap {
   display: grid;
   gap: 8px;
+}
+
+.popup-shell > .mini-heatmap {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .mini-heatmap-header {

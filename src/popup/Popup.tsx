@@ -40,12 +40,8 @@ import type {
   UserSettings,
 } from '../storage'
 import { getStreakDisplayState } from '../streakDisplay'
-import {
-  getAllTimeStats,
-  getCurrentMonthTimeStats,
-  getCurrentWeekTimeStats,
-} from '../timeStats'
-import type { AllTimeStats, MonthlyTimeStats, WeeklyTimeStats } from '../timeStats'
+import { getCurrentWeekTimeStats } from '../timeStats'
+import type { WeeklyTimeStats } from '../timeStats'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 
@@ -67,8 +63,6 @@ function Popup() {
   const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null)
   const [heatmapGrid, setHeatmapGrid] = useState<HeatmapGrid | null>(null)
   const [weeklyTimeStats, setWeeklyTimeStats] = useState<WeeklyTimeStats | null>(null)
-  const [monthlyTimeStats, setMonthlyTimeStats] = useState<MonthlyTimeStats | null>(null)
-  const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDateText, setFinishDateText] = useState('Study on Scrimba to estimate')
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
@@ -104,16 +98,12 @@ function Popup() {
       getStorageValue('streakStatus'),
       getPopupHeatmapGrid(),
       getCurrentWeekTimeStats(),
-      getCurrentMonthTimeStats(),
-      getAllTimeStats(),
       getPathProjection(),
-    ]).then(([activity, streak, heatmap, weekStats, monthStats, allStats, projection]) => {
+    ]).then(([activity, streak, heatmap, weekStats, projection]) => {
       setTodayActivity(activity)
       setStreakStatus(streak)
       setHeatmapGrid(heatmap)
       setWeeklyTimeStats(weekStats)
-      setMonthlyTimeStats(monthStats)
-      setAllTimeStats(allStats)
       syncProjection(projection)
     })
   }
@@ -128,8 +118,6 @@ function Popup() {
       getStorageValue('streakStatus'),
       getPopupHeatmapGrid(),
       getCurrentWeekTimeStats(),
-      getCurrentMonthTimeStats(),
-      getAllTimeStats(),
       getPathProgress(),
       getPathProjection(),
     ]).then(
@@ -139,8 +127,6 @@ function Popup() {
         loadedStreakStatus,
         loadedHeatmapGrid,
         loadedWeeklyTimeStats,
-        loadedMonthlyTimeStats,
-        loadedAllTimeStats,
         loadedPathProgress,
         projection,
       ]) => {
@@ -153,8 +139,6 @@ function Popup() {
         setStreakStatus(loadedStreakStatus)
         setHeatmapGrid(loadedHeatmapGrid)
         setWeeklyTimeStats(loadedWeeklyTimeStats)
-        setMonthlyTimeStats(loadedMonthlyTimeStats)
-        setAllTimeStats(loadedAllTimeStats)
         setPathProgress(loadedPathProgress)
         syncProjection(projection)
         setDailyGoalMinutes(
@@ -280,10 +264,6 @@ function Popup() {
   const weeklyAverageText = `${formatActiveTime(
     weeklyTimeStats?.averageSecondsPerDay ?? 0,
   )} avg/day`
-  const monthlyActiveTime = formatActiveTime(monthlyTimeStats?.activeSeconds ?? 0)
-  const monthlyActiveDaysText = `${monthlyTimeStats?.activeDays ?? 0} active days`
-  const allTimeActiveTime = formatActiveTime(allTimeStats?.activeSeconds ?? 0)
-  const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
   const averagePaceText = formatHoursPerDay(averagePaceSeconds)
   const completedHoursText = formatPathHours(completedHours)
   const remainingHoursText =
@@ -292,43 +272,17 @@ function Popup() {
 
   return (
     <main className="popup-shell" aria-label="Scrimba Learning Tracker popup">
-      <div>
-        <p className="eyebrow">Scrimba tracker</p>
-        <h1>{settings?.trackingEnabled === false ? 'Paused' : 'Ready to track'}</h1>
-        <p className="muted">
-          This extension is wired for Scrimba pages and stores data locally.
-        </p>
-      </div>
-
-      <section className="settings-panel" aria-label="Tracking settings">
-        <div className={`streak-state streak-state-${streakDisplay.tone}`}>
-          <strong>{streakDisplay.currentLabel}</strong>
-          <span>{streakDisplay.longestLabel}</span>
-          <p>{streakDisplay.message}</p>
+      <header className="popup-header">
+        <div>
+          <p className="eyebrow">Scrimba tracker</p>
+          <h1>{settings?.trackingEnabled === false ? 'Paused' : 'Learning status'}</h1>
         </div>
+        <span className="status-pill">
+          {settings?.trackingEnabled === false ? 'Paused' : 'Tracking on'}
+        </span>
+      </header>
 
-        <div className="time-stat-stack">
-          <div className="time-stat-row" aria-label="Today active learning time">
-            <span>Today active time</span>
-            <strong>{todayActiveTime}</strong>
-          </div>
-          <div className="time-stat-row" aria-label="This week's active learning time">
-            <span>This week</span>
-            <strong>{weeklyActiveTime}</strong>
-            <small>{weeklyAverageText}</small>
-          </div>
-          <div className="time-stat-row" aria-label="This month's active learning time">
-            <span>This month</span>
-            <strong>{monthlyActiveTime}</strong>
-            <small>{monthlyActiveDaysText}</small>
-          </div>
-          <div className="time-stat-row" aria-label="All-time active learning time">
-            <span>All time</span>
-            <strong>{allTimeActiveTime}</strong>
-            <small>{allTimeActiveDaysText}</small>
-          </div>
-        </div>
-
+      <section className="popup-today-card" aria-label="Today's progress">
         <div className="goal-progress" aria-label="Today goal progress">
           <div className="goal-progress-header">
             <span>Today</span>
@@ -343,178 +297,200 @@ function Popup() {
               : `${formatActiveTime(goalProgress.remainingSeconds)} remaining`}
           </p>
         </div>
-
-        <div className="mini-heatmap" aria-label="Recent activity heatmap">
-          <div className="mini-heatmap-header">
-            <span>Last 12 weeks</span>
-            <span>Less More</span>
-          </div>
-          <div className="mini-heatmap-grid" role="img" aria-label="Daily Scrimba activity for the last 12 weeks">
-            {heatmapGrid?.weeks.map((week) => (
-              <div className="mini-heatmap-week" key={week.startDate}>
-                {week.days.map((day) => (
-                  <span
-                    key={day.date}
-                    tabIndex={0}
-                    className={[
-                      'mini-heatmap-cell',
-                      'heatmap-tooltip-trigger',
-                      `heatmap-level-${day.intensity}`,
-                      day.isToday ? 'is-today' : '',
-                      day.isFuture ? 'is-future' : '',
-                    ].filter(Boolean).join(' ')}
-                    title={getHeatmapTooltipText(day)}
-                    aria-label={getHeatmapTooltipText(day)}
-                  >
-                    <span className="heatmap-tooltip" role="tooltip">
-                      {getHeatmapTooltipLines(day).map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <label className="toggle-row">
-          <span>Tracking</span>
-          <input
-            type="checkbox"
-            checked={settings?.trackingEnabled ?? true}
-            onChange={toggleTracking}
-          />
-        </label>
-
-        <label>
-          <span>Daily goal</span>
-          <div className="goal-control" role="group" aria-label="Daily goal presets">
-            <div className="segmented-control">
-              {dailyGoalPresetMinutes.map((minutes) => (
-                <button
-                  key={minutes}
-                  type="button"
-                  className={
-                    Number(dailyGoalMinutes) === minutes ? 'is-selected' : undefined
-                  }
-                  onClick={() => saveGoalMinutes(minutes)}
-                >
-                  {minutes}
-                </button>
-              ))}
-            </div>
-            <div className="input-row">
-              <input
-                max="1440"
-                min="1"
-                step="1"
-                type="number"
-                value={dailyGoalMinutes}
-                onBlur={saveCustomGoal}
-                onChange={(event) => setDailyGoalMinutes(event.target.value)}
-              />
-              <span>min</span>
-            </div>
-          </div>
-          {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
-        </label>
-
-        <label>
-          <span>Idle timeout</span>
-          <div className="input-row">
-            <input
-              min="0"
-              type="number"
-              value={idleTimeoutMinutes}
-              onBlur={saveIdleTimeoutValue}
-              onChange={(event) => setIdleTimeoutMinutes(event.target.value)}
-            />
-            <span>min</span>
-          </div>
-        </label>
-
-        <label>
-          <span>Timezone</span>
-          <input
-            type="text"
-            value={timezone}
-            onBlur={saveTimezoneValue}
-            onChange={(event) => setTimezone(event.target.value)}
-          />
-        </label>
+        <strong>{todayActiveTime}</strong>
       </section>
 
-      <section className="settings-panel" aria-label="Path settings">
-        <label>
-          <span>Path name</span>
-          <input
-            type="text"
-            value={pathName}
-            onBlur={savePathNameValue}
-            onChange={(event) => setPathName(event.target.value)}
-          />
-        </label>
+      <section className="popup-status-grid" aria-label="Current status">
+        <article className={`popup-status-card streak-state-${streakDisplay.tone}`}>
+          <span>Current streak</span>
+          <strong>{streakDisplay.currentLabel}</strong>
+          <small>{streakDisplay.message}</small>
+        </article>
+        <article className="popup-status-card">
+          <span>Weekly total</span>
+          <strong>{weeklyActiveTime}</strong>
+          <small>{weeklyAverageText}</small>
+        </article>
+      </section>
 
-        <label>
-          <span>Total estimate</span>
-          <div className="input-row">
-            <input
-              min="0.1"
-              step="0.5"
-              type="number"
-              value={totalEstimatedHours}
-              onBlur={saveTotalEstimatedHoursValue}
-              onChange={(event) => setTotalEstimatedHours(event.target.value)}
-            />
-            <span>hr</span>
-          </div>
-        </label>
+      <section className="mini-heatmap" aria-label="Recent activity heatmap">
+        <div className="mini-heatmap-header">
+          <span>Last 12 weeks</span>
+          <span>Less More</span>
+        </div>
+        <div className="mini-heatmap-grid" role="img" aria-label="Daily Scrimba activity for the last 12 weeks">
+          {heatmapGrid?.weeks.map((week) => (
+            <div className="mini-heatmap-week" key={week.startDate}>
+              {week.days.map((day) => (
+                <span
+                  key={day.date}
+                  tabIndex={0}
+                  className={[
+                    'mini-heatmap-cell',
+                    'heatmap-tooltip-trigger',
+                    `heatmap-level-${day.intensity}`,
+                    day.isToday ? 'is-today' : '',
+                    day.isFuture ? 'is-future' : '',
+                  ].filter(Boolean).join(' ')}
+                  title={getHeatmapTooltipText(day)}
+                  aria-label={getHeatmapTooltipText(day)}
+                >
+                  <span className="heatmap-tooltip" role="tooltip">
+                    {getHeatmapTooltipLines(day).map((line) => (
+                      <span key={line}>{line}</span>
+                    ))}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <label>
-          <span>Progress</span>
-          <div className="input-row">
-            <input
-              max="100"
-              min="0"
-              step="1"
-              type="number"
-              value={progressPercentage}
-              onBlur={saveProgressPercentageValue}
-              onChange={(event) => setProgressPercentage(event.target.value)}
-            />
-            <span>%</span>
-          </div>
-        </label>
-
-        <label>
-          <span>Average window</span>
-          <select
-            value={pathProgress?.averageWindowDays ?? 7}
-            onChange={(event) => {
-              saveAverageWindowValue(parseAverageWindowDays(event.target.value))
-            }}
-          >
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-            <option value="30">30 days</option>
-            <option value="all">All time</option>
-          </select>
-        </label>
-
-        <p className="projection-line">
-          Finish estimate {finishDateText}
-        </p>
-        <p className="projection-line">
-          Remaining {remainingHoursText} - Completed {completedHoursText}
-        </p>
-        <p className="projection-line">Average pace {averagePaceText}</p>
-        {pathError ? <span className="error-text">{pathError}</span> : null}
+      <section className="popup-projection" aria-label="Pace projection">
+        <span>Pace projection</span>
+        <strong>{finishDateText}</strong>
+        <small>{averagePaceText} - {remainingHoursText} remaining</small>
       </section>
 
       <button type="button" className="primary-button" onClick={openDashboard}>
         Open dashboard
       </button>
+
+      <details className="popup-settings-shortcut">
+        <summary>Settings</summary>
+
+        <section className="settings-panel" aria-label="Tracking settings">
+          <label className="toggle-row">
+            <span>Tracking</span>
+            <input
+              type="checkbox"
+              checked={settings?.trackingEnabled ?? true}
+              onChange={toggleTracking}
+            />
+          </label>
+
+          <label>
+            <span>Daily goal</span>
+            <div className="goal-control" role="group" aria-label="Daily goal presets">
+              <div className="segmented-control">
+                {dailyGoalPresetMinutes.map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    className={
+                      Number(dailyGoalMinutes) === minutes ? 'is-selected' : undefined
+                    }
+                    onClick={() => saveGoalMinutes(minutes)}
+                  >
+                    {minutes}
+                  </button>
+                ))}
+              </div>
+              <div className="input-row">
+                <input
+                  max="1440"
+                  min="1"
+                  step="1"
+                  type="number"
+                  value={dailyGoalMinutes}
+                  onBlur={saveCustomGoal}
+                  onChange={(event) => setDailyGoalMinutes(event.target.value)}
+                />
+                <span>min</span>
+              </div>
+            </div>
+            {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
+          </label>
+
+          <label>
+            <span>Idle timeout</span>
+            <div className="input-row">
+              <input
+                min="0"
+                type="number"
+                value={idleTimeoutMinutes}
+                onBlur={saveIdleTimeoutValue}
+                onChange={(event) => setIdleTimeoutMinutes(event.target.value)}
+              />
+              <span>min</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Timezone</span>
+            <input
+              type="text"
+              value={timezone}
+              onBlur={saveTimezoneValue}
+              onChange={(event) => setTimezone(event.target.value)}
+            />
+          </label>
+        </section>
+
+        <section className="settings-panel" aria-label="Path settings">
+          <label>
+            <span>Path name</span>
+            <input
+              type="text"
+              value={pathName}
+              onBlur={savePathNameValue}
+              onChange={(event) => setPathName(event.target.value)}
+            />
+          </label>
+
+          <label>
+            <span>Total estimate</span>
+            <div className="input-row">
+              <input
+                min="0.1"
+                step="0.5"
+                type="number"
+                value={totalEstimatedHours}
+                onBlur={saveTotalEstimatedHoursValue}
+                onChange={(event) => setTotalEstimatedHours(event.target.value)}
+              />
+              <span>hr</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Progress</span>
+            <div className="input-row">
+              <input
+                max="100"
+                min="0"
+                step="1"
+                type="number"
+                value={progressPercentage}
+                onBlur={saveProgressPercentageValue}
+                onChange={(event) => setProgressPercentage(event.target.value)}
+              />
+              <span>%</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Average window</span>
+            <select
+              value={pathProgress?.averageWindowDays ?? 7}
+              onChange={(event) => {
+                saveAverageWindowValue(parseAverageWindowDays(event.target.value))
+              }}
+            >
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="all">All time</option>
+            </select>
+          </label>
+
+          <p className="projection-line">
+            Completed {completedHoursText}
+          </p>
+          {pathError ? <span className="error-text">{pathError}</span> : null}
+        </section>
+      </details>
     </main>
   )
 }
