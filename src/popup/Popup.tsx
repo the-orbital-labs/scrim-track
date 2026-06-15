@@ -17,7 +17,7 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from '../pathProgress'
-import { getPathProjection } from '../projection'
+import { formatHoursPerDay, getPathProjection } from '../projection'
 import {
   getUserSettings,
   saveDailyGoal,
@@ -65,6 +65,7 @@ function Popup() {
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
+  const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('2')
   const [timezone, setTimezone] = useState(
@@ -79,6 +80,7 @@ function Popup() {
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
       setFinishDate(projection.finishDate)
+      setAveragePaceSeconds(projection.averageDailySeconds)
     })
   }
 
@@ -139,6 +141,7 @@ function Popup() {
         setAllTimeStats(loadedAllTimeStats)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
+        setAveragePaceSeconds(projection.averageDailySeconds)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -266,6 +269,7 @@ function Popup() {
   const monthlyActiveDaysText = `${monthlyTimeStats?.activeDays ?? 0} active days`
   const allTimeActiveTime = formatActiveTime(allTimeStats?.activeSeconds ?? 0)
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
+  const averagePaceText = formatHoursPerDay(averagePaceSeconds)
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
 
   return (
@@ -483,6 +487,7 @@ function Popup() {
         <p className="projection-line">
           {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
         </p>
+        <p className="projection-line">Average pace {averagePaceText}</p>
         {pathError ? <span className="error-text">{pathError}</span> : null}
       </section>
 

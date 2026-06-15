@@ -17,7 +17,7 @@ import {
   saveProgressPercentage,
   saveTotalEstimatedHours,
 } from './pathProgress'
-import { getPathProjection } from './projection'
+import { formatHoursPerDay, getPathProjection } from './projection'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
 import type {
@@ -74,6 +74,7 @@ function App() {
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDate, setFinishDate] = useState<string | null>(null)
+  const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
   const [pathName, setPathName] = useState('')
@@ -159,6 +160,7 @@ function App() {
         setMonthlySummary(loadedMonthlySummary)
         setPathProgress(loadedPathProgress)
         setFinishDate(projection.finishDate)
+        setAveragePaceSeconds(projection.averageDailySeconds)
         setPathName(loadedPathProgress.pathName)
         setTotalEstimatedHours(String(loadedPathProgress.totalEstimatedHours))
         setProgressPercentage(String(loadedPathProgress.progressPercentage))
@@ -200,6 +202,7 @@ function App() {
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
       setFinishDate(projection.finishDate)
+      setAveragePaceSeconds(projection.averageDailySeconds)
     })
   }
 
@@ -272,6 +275,7 @@ function App() {
   const pathStatusText = pathProgress?.pathName
     ? `${pathProgress.pathName} - ${pathProgress.progressPercentage}% complete`
     : 'No path set'
+  const averagePaceText = formatHoursPerDay(averagePaceSeconds)
   const weeklyComparisonDifference = Math.abs(
     weeklySummary?.comparisonSeconds ?? 0,
   )
@@ -450,9 +454,16 @@ function App() {
           </label>
         </div>
 
-        <p className="projection-line">
-          {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
-        </p>
+        <div className="path-setup-stats">
+          <span>
+            Average pace
+            <strong>{averagePaceText}</strong>
+          </span>
+          <span>
+            Projected finish
+            <strong>{finishDate ?? 'Pending'}</strong>
+          </span>
+        </div>
         {pathError ? <span className="error-text">{pathError}</span> : null}
       </section>
 
