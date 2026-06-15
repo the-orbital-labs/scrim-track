@@ -3,6 +3,21 @@ import type { AverageWindowDays, PathProgress } from './storage'
 
 const averageWindowValues = new Set<AverageWindowDays>([7, 14, 30, 'all'])
 
+export const parseAverageWindowDays = (value: string): AverageWindowDays =>
+  value === 'all' ? 'all' : Number(value) as 7 | 14 | 30
+
+export const isValidAverageWindowDays = (value: unknown): value is AverageWindowDays =>
+  averageWindowValues.has(value as AverageWindowDays)
+
+export const isValidPathName = (value: string): boolean =>
+  value.trim().length > 0
+
+export const isValidProgressPercentage = (value: number): boolean =>
+  Number.isFinite(value) && value >= 0 && value <= 100
+
+export const isValidTotalEstimatedHours = (value: number): boolean =>
+  Number.isFinite(value) && value > 0
+
 const normalizePercentage = (value: number): number => {
   if (!Number.isFinite(value)) {
     return 0
@@ -17,7 +32,7 @@ const normalizeTotalHours = (
 ): number => (Number.isFinite(value) && value > 0 ? value : fallback)
 
 const normalizeAverageWindow = (value: unknown): AverageWindowDays =>
-  averageWindowValues.has(value as AverageWindowDays)
+  isValidAverageWindowDays(value)
     ? (value as AverageWindowDays)
     : 7
 

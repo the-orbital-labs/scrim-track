@@ -5,9 +5,28 @@ import { formatActiveTime, getGoalProgress, secondsToMinutes } from './goalProgr
 import { getDashboardHeatmapGrid } from './heatmap'
 import type { HeatmapGrid, HeatmapWeek } from './heatmap'
 import { getHeatmapTooltipLines, getHeatmapTooltipText } from './heatmapTooltip'
+import {
+  getPathProgress,
+  isValidAverageWindowDays,
+  isValidPathName,
+  isValidProgressPercentage,
+  isValidTotalEstimatedHours,
+  parseAverageWindowDays,
+  saveAverageWindowDays,
+  savePathName,
+  saveProgressPercentage,
+  saveTotalEstimatedHours,
+} from './pathProgress'
+import { getPathProjection } from './projection'
 import { getUserSettings, saveDailyGoal } from './settings'
 import { getStorageValue } from './storage'
-import type { DailyActivity, StreakStatus, UserSettings } from './storage'
+import type {
+  AverageWindowDays,
+  DailyActivity,
+  PathProgress,
+  StreakStatus,
+  UserSettings,
+} from './storage'
 import { getStreakDisplayState } from './streakDisplay'
 import {
   getAllTimeStats,
@@ -53,8 +72,14 @@ function App() {
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null)
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null)
+  const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
+  const [finishDate, setFinishDate] = useState<string | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
+  const [pathName, setPathName] = useState('')
+  const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
+  const [progressPercentage, setProgressPercentage] = useState('0')
+  const [pathError, setPathError] = useState<string | null>(null)
 
   const refreshTodayActivity = () => {
     void Promise.all([
@@ -103,6 +128,8 @@ function App() {
       getAllTimeStats(),
       getCurrentWeekSummary(),
       getCurrentMonthSummary(),
+      getPathProgress(),
+      getPathProjection(),
     ]).then(
       ([
         loadedSettings,
@@ -114,6 +141,8 @@ function App() {
         loadedAllTimeStats,
         loadedWeeklySummary,
         loadedMonthlySummary,
+        loadedPathProgress,
+        projection,
       ]) => {
         if (!isMounted) {
           return
@@ -128,6 +157,11 @@ function App() {
         setAllTimeStats(loadedAllTimeStats)
         setWeeklySummary(loadedWeeklySummary)
         setMonthlySummary(loadedMonthlySummary)
+        setPathProgress(loadedPathProgress)
+        setFinishDate(projection.finishDate)
+        setPathName(loadedPathProgress.pathName)
+        setTotalEstimatedHours(String(loadedPathProgress.totalEstimatedHours))
+        setProgressPercentage(String(loadedPathProgress.progressPercentage))
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -163,6 +197,64 @@ function App() {
     saveGoalMinutes(Number(dailyGoalMinutes))
   }
 
+  const refreshProjection = () => {
+    void getPathProjection().then((projection) => {
+      setFinishDate(projection.finishDate)
+    })
+  }
+
+  const syncPathProgress = (nextPathProgress: PathProgress) => {
+    setPathProgress(nextPathProgress)
+    setPathName(nextPathProgress.pathName)
+    setTotalEstimatedHours(String(nextPathProgress.totalEstimatedHours))
+    setProgressPercentage(String(nextPathProgress.progressPercentage))
+    setPathError(null)
+    refreshProjection()
+  }
+
+  const savePathNameValue = () => {
+    if (!isValidPathName(pathName)) {
+      setPathError('Enter a path name.')
+      setPathName(pathProgress?.pathName ?? '')
+      return
+    }
+
+    void savePathName(pathName).then(syncPathProgress)
+  }
+
+  const saveTotalEstimatedHoursValue = () => {
+    const hours = Number(totalEstimatedHours)
+
+    if (!isValidTotalEstimatedHours(hours)) {
+      setPathError('Total estimate must be greater than 0 hours.')
+      setTotalEstimatedHours(String(pathProgress?.totalEstimatedHours ?? 1))
+      return
+    }
+
+    void saveTotalEstimatedHours(hours).then(syncPathProgress)
+  }
+
+  const saveProgressPercentageValue = () => {
+    const percentage = Number(progressPercentage)
+
+    if (!isValidProgressPercentage(percentage)) {
+      setPathError('Progress must be between 0 and 100%.')
+      setProgressPercentage(String(pathProgress?.progressPercentage ?? 0))
+      return
+    }
+
+    void saveProgressPercentage(percentage).then(syncPathProgress)
+  }
+
+  const saveAverageWindowValue = (averageWindowDays: AverageWindowDays) => {
+    if (!isValidAverageWindowDays(averageWindowDays)) {
+      setPathError('Choose a valid average window.')
+      return
+    }
+
+    void saveAverageWindowDays(averageWindowDays).then(syncPathProgress)
+  }
+
   const goalProgress = getGoalProgress(todayActivity, settings)
   const progressText =
     goalProgress.goalSeconds > 0
@@ -177,6 +269,9 @@ function App() {
     weeklySummary?.summaryText ?? ['Weekly summary is loading.']
   const monthlySummaryLines =
     monthlySummary?.summaryText ?? ['Monthly summary is loading.']
+  const pathStatusText = pathProgress?.pathName
+    ? `${pathProgress.pathName} - ${pathProgress.progressPercentage}% complete`
+    : 'No path set'
   const weeklyComparisonDifference = Math.abs(
     weeklySummary?.comparisonSeconds ?? 0,
   )
@@ -289,6 +384,76 @@ function App() {
             <strong>{monthlySummary?.longestStreak ?? 0}d</strong>
           </span>
         </div>
+      </section>
+
+      <section className="panel path-setup-panel" aria-label="Path setup">
+        <div className="panel-heading-row">
+          <h2>Path Setup</h2>
+          <span>{pathStatusText}</span>
+        </div>
+
+        <div className="path-setup-grid">
+          <label>
+            <span>Path name</span>
+            <input
+              type="text"
+              value={pathName}
+              onBlur={savePathNameValue}
+              onChange={(event) => setPathName(event.target.value)}
+            />
+          </label>
+
+          <label>
+            <span>Total estimate</span>
+            <div className="input-row dashboard-input-row">
+              <input
+                min="0.1"
+                step="0.5"
+                type="number"
+                value={totalEstimatedHours}
+                onBlur={saveTotalEstimatedHoursValue}
+                onChange={(event) => setTotalEstimatedHours(event.target.value)}
+              />
+              <span>hr</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Progress</span>
+            <div className="input-row dashboard-input-row">
+              <input
+                max="100"
+                min="0"
+                step="1"
+                type="number"
+                value={progressPercentage}
+                onBlur={saveProgressPercentageValue}
+                onChange={(event) => setProgressPercentage(event.target.value)}
+              />
+              <span>%</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Average window</span>
+            <select
+              value={pathProgress?.averageWindowDays ?? 7}
+              onChange={(event) => {
+                saveAverageWindowValue(parseAverageWindowDays(event.target.value))
+              }}
+            >
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="all">All time</option>
+            </select>
+          </label>
+        </div>
+
+        <p className="projection-line">
+          {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
+        </p>
+        {pathError ? <span className="error-text">{pathError}</span> : null}
       </section>
 
       <section className="panel">

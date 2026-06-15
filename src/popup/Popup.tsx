@@ -7,6 +7,11 @@ import type { HeatmapGrid } from '../heatmap'
 import { getHeatmapTooltipLines, getHeatmapTooltipText } from '../heatmapTooltip'
 import {
   getPathProgress,
+  isValidAverageWindowDays,
+  isValidPathName,
+  isValidProgressPercentage,
+  isValidTotalEstimatedHours,
+  parseAverageWindowDays,
   saveAverageWindowDays,
   savePathName,
   saveProgressPercentage,
@@ -69,6 +74,7 @@ function Popup() {
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
   const [progressPercentage, setProgressPercentage] = useState('0')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
+  const [pathError, setPathError] = useState<string | null>(null)
 
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
@@ -157,6 +163,7 @@ function Popup() {
     setPathName(nextPathProgress.pathName)
     setTotalEstimatedHours(String(nextPathProgress.totalEstimatedHours))
     setProgressPercentage(String(nextPathProgress.progressPercentage))
+    setPathError(null)
     refreshProjection()
   }
 
@@ -195,18 +202,45 @@ function Popup() {
   }
 
   const savePathNameValue = () => {
+    if (!isValidPathName(pathName)) {
+      setPathError('Enter a path name.')
+      setPathName(pathProgress?.pathName ?? '')
+      return
+    }
+
     void savePathName(pathName).then(syncPathProgress)
   }
 
   const saveTotalEstimatedHoursValue = () => {
-    void saveTotalEstimatedHours(Number(totalEstimatedHours)).then(syncPathProgress)
+    const hours = Number(totalEstimatedHours)
+
+    if (!isValidTotalEstimatedHours(hours)) {
+      setPathError('Total estimate must be greater than 0 hours.')
+      setTotalEstimatedHours(String(pathProgress?.totalEstimatedHours ?? 1))
+      return
+    }
+
+    void saveTotalEstimatedHours(hours).then(syncPathProgress)
   }
 
   const saveProgressPercentageValue = () => {
-    void saveProgressPercentage(Number(progressPercentage)).then(syncPathProgress)
+    const percentage = Number(progressPercentage)
+
+    if (!isValidProgressPercentage(percentage)) {
+      setPathError('Progress must be between 0 and 100%.')
+      setProgressPercentage(String(pathProgress?.progressPercentage ?? 0))
+      return
+    }
+
+    void saveProgressPercentage(percentage).then(syncPathProgress)
   }
 
   const saveAverageWindowValue = (averageWindowDays: AverageWindowDays) => {
+    if (!isValidAverageWindowDays(averageWindowDays)) {
+      setPathError('Choose a valid average window.')
+      return
+    }
+
     void saveAverageWindowDays(averageWindowDays).then(syncPathProgress)
   }
 
@@ -436,8 +470,7 @@ function Popup() {
           <select
             value={pathProgress?.averageWindowDays ?? 7}
             onChange={(event) => {
-              const value = event.target.value
-              saveAverageWindowValue(value === 'all' ? 'all' : Number(value) as 7 | 14 | 30)
+              saveAverageWindowValue(parseAverageWindowDays(event.target.value))
             }}
           >
             <option value="7">7 days</option>
@@ -450,6 +483,7 @@ function Popup() {
         <p className="projection-line">
           {finishDate ? `Projected finish ${finishDate}` : 'Projection pending'}
         </p>
+        {pathError ? <span className="error-text">{pathError}</span> : null}
       </section>
 
       <button type="button" className="primary-button" onClick={openDashboard}>
