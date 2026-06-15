@@ -3,6 +3,7 @@ declare const chrome: {
     getManifest: () => { version: string }
     getURL: (path: string) => string
     lastError?: { message?: string }
+    openOptionsPage?: () => void
     onInstalled: {
       addListener: (callback: () => void) => void
     }

@@ -44,14 +44,25 @@ import { getCurrentWeekTimeStats } from '../timeStats'
 import type { WeeklyTimeStats } from '../timeStats'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+const dashboardPath = 'dashboard.html'
 
 const openDashboard = () => {
-  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') })
+  if (typeof chrome !== 'undefined' && chrome.runtime?.openOptionsPage) {
+    chrome.runtime.openOptionsPage()
     return
   }
 
-  window.location.href = '/dashboard.html'
+  const dashboardUrl =
+    typeof chrome !== 'undefined' && chrome.runtime?.getURL
+      ? chrome.runtime.getURL(dashboardPath)
+      : `/${dashboardPath}`
+
+  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+    chrome.tabs.create({ url: dashboardUrl })
+    return
+  }
+
+  window.open(dashboardUrl, '_blank', 'noopener,noreferrer')
 }
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
