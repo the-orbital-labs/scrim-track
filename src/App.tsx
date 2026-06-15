@@ -15,6 +15,8 @@ import {
   getCurrentWeekTimeStats,
 } from './timeStats'
 import type { AllTimeStats, MonthlyTimeStats, WeeklyTimeStats } from './timeStats'
+import { getCurrentMonthSummary } from './monthlySummary'
+import type { MonthlySummary } from './monthlySummary'
 import { getCurrentWeekSummary } from './weeklySummary'
 import type { WeeklySummary } from './weeklySummary'
 
@@ -50,6 +52,7 @@ function App() {
   const [monthlyTimeStats, setMonthlyTimeStats] = useState<MonthlyTimeStats | null>(null)
   const [allTimeStats, setAllTimeStats] = useState<AllTimeStats | null>(null)
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null)
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
 
@@ -62,6 +65,7 @@ function App() {
       getCurrentMonthTimeStats(),
       getAllTimeStats(),
       getCurrentWeekSummary(),
+      getCurrentMonthSummary(),
     ]).then(
       ([
         activity,
@@ -71,6 +75,7 @@ function App() {
         monthStats,
         allStats,
         summary,
+        monthSummary,
       ]) => {
         setTodayActivity(activity)
         setStreakStatus(streak)
@@ -79,6 +84,7 @@ function App() {
         setMonthlyTimeStats(monthStats)
         setAllTimeStats(allStats)
         setWeeklySummary(summary)
+        setMonthlySummary(monthSummary)
       },
     )
   }
@@ -96,6 +102,7 @@ function App() {
       getCurrentMonthTimeStats(),
       getAllTimeStats(),
       getCurrentWeekSummary(),
+      getCurrentMonthSummary(),
     ]).then(
       ([
         loadedSettings,
@@ -106,6 +113,7 @@ function App() {
         loadedMonthlyTimeStats,
         loadedAllTimeStats,
         loadedWeeklySummary,
+        loadedMonthlySummary,
       ]) => {
         if (!isMounted) {
           return
@@ -119,6 +127,7 @@ function App() {
         setMonthlyTimeStats(loadedMonthlyTimeStats)
         setAllTimeStats(loadedAllTimeStats)
         setWeeklySummary(loadedWeeklySummary)
+        setMonthlySummary(loadedMonthlySummary)
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
@@ -166,6 +175,8 @@ function App() {
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
   const weeklySummaryLines =
     weeklySummary?.summaryText ?? ['Weekly summary is loading.']
+  const monthlySummaryLines =
+    monthlySummary?.summaryText ?? ['Monthly summary is loading.']
   const weeklyComparisonDifference = Math.abs(
     weeklySummary?.comparisonSeconds ?? 0,
   )
@@ -249,6 +260,33 @@ function App() {
             Change
             <strong>{formatActiveTime(weeklyComparisonDifference)}</strong>
             <small>{weeklyComparisonLabel}</small>
+          </span>
+        </div>
+      </section>
+
+      <section className="panel weekly-summary-panel" aria-label="Monthly summary">
+        <div className="panel-heading-row">
+          <h2>Monthly Summary</h2>
+          <span>{monthlySummary?.activeDays ?? 0} active days</span>
+        </div>
+        <ul className="weekly-summary-list">
+          {monthlySummaryLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <div className="weekly-summary-stats">
+          <span>
+            Daily average
+            <strong>{formatActiveTime(monthlySummary?.dailyAverageSeconds ?? 0)}</strong>
+          </span>
+          <span>
+            Best week
+            <strong>{formatActiveTime(monthlySummary?.bestWeek?.activeSeconds ?? 0)}</strong>
+            <small>{monthlySummary?.bestWeek?.label ?? 'No activity yet'}</small>
+          </span>
+          <span>
+            Longest streak
+            <strong>{monthlySummary?.longestStreak ?? 0}d</strong>
           </span>
         </div>
       </section>
