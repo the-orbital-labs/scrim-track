@@ -13,6 +13,7 @@ export type WeeklySummary = {
   } | null
   comparisonSeconds: number
   comparisonText: string
+  comparisonTrend: 'decrease' | 'increase' | 'no-change'
   dailyAverageSeconds: number
   previousWeekActiveSeconds: number
   summaryText: string[]
@@ -65,6 +66,10 @@ const getComparisonText = (
     return 'No activity this week or last week yet.'
   }
 
+  if (previousWeekActiveSeconds === 0) {
+    return `Last week had no recorded study time. You studied ${formatActiveTime(activeSeconds)} this week.`
+  }
+
   if (difference > 0) {
     return `You studied ${formatActiveTime(difference)} more than last week.`
   }
@@ -74,6 +79,21 @@ const getComparisonText = (
   }
 
   return 'You matched last week.'
+}
+
+const getComparisonTrend = (
+  activeSeconds: number,
+  previousWeekActiveSeconds: number,
+): WeeklySummary['comparisonTrend'] => {
+  if (activeSeconds > previousWeekActiveSeconds) {
+    return 'increase'
+  }
+
+  if (activeSeconds < previousWeekActiveSeconds) {
+    return 'decrease'
+  }
+
+  return 'no-change'
 }
 
 export const getCurrentWeekSummary = async (
@@ -104,6 +124,7 @@ export const getCurrentWeekSummary = async (
       }
     : null
   const comparisonText = getComparisonText(activeSeconds, previousWeekActiveSeconds)
+  const comparisonTrend = getComparisonTrend(activeSeconds, previousWeekActiveSeconds)
   const summaryText =
     activeSeconds > 0
       ? [
@@ -124,6 +145,7 @@ export const getCurrentWeekSummary = async (
     bestDay,
     comparisonSeconds: activeSeconds - previousWeekActiveSeconds,
     comparisonText,
+    comparisonTrend,
     dailyAverageSeconds,
     previousWeekActiveSeconds,
     summaryText,

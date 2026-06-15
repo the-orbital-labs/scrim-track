@@ -112,7 +112,7 @@
 
 .weekly-summary-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -132,6 +132,27 @@
   color: var(--text-h);
   font-size: 20px;
   line-height: 1;
+}
+
+.weekly-summary-stats small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.weekly-comparison-increase strong,
+.weekly-comparison-increase small {
+  color: var(--success);
+}
+
+.weekly-comparison-decrease strong,
+.weekly-comparison-decrease small {
+  color: #b42318;
+}
+
+.weekly-comparison-no-change strong,
+.weekly-comparison-no-change small {
+  color: var(--muted);
 }
 
 .check-list {

@@ -166,6 +166,15 @@ function App() {
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
   const weeklySummaryLines =
     weeklySummary?.summaryText ?? ['Weekly summary is loading.']
+  const weeklyComparisonDifference = Math.abs(
+    weeklySummary?.comparisonSeconds ?? 0,
+  )
+  const weeklyComparisonLabel =
+    weeklySummary?.comparisonTrend === 'increase'
+      ? 'Improved'
+      : weeklySummary?.comparisonTrend === 'decrease'
+        ? 'Declined'
+        : 'No change'
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
   const activeHeatmapDays =
     heatmapGrid?.weeks
@@ -233,6 +242,13 @@ function App() {
           <span>
             Last week
             <strong>{formatActiveTime(weeklySummary?.previousWeekActiveSeconds ?? 0)}</strong>
+          </span>
+          <span
+            className={`weekly-comparison weekly-comparison-${weeklySummary?.comparisonTrend ?? 'no-change'}`}
+          >
+            Change
+            <strong>{formatActiveTime(weeklyComparisonDifference)}</strong>
+            <small>{weeklyComparisonLabel}</small>
           </span>
         </div>
       </section>
