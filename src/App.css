@@ -317,6 +317,91 @@
   line-height: 1.15;
 }
 
+.popup-streak-card {
+  gap: 8px;
+}
+
+.popup-streak-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.popup-streak-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.popup-streak-value strong {
+  color: var(--text-h);
+  font-size: 32px;
+  line-height: 1;
+}
+
+.popup-streak-value span,
+.popup-streak-best {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.popup-streak-best {
+  display: block;
+}
+
+.streak-status-mark {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.streak-status-mark-complete {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.streak-status-mark-complete::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 7px;
+  width: 7px;
+  height: 4px;
+  border-bottom: 2px solid white;
+  border-left: 2px solid white;
+  transform: rotate(-45deg);
+}
+
+.streak-status-mark-pending {
+  border-color: var(--accent);
+}
+
+.streak-status-mark-pending::before,
+.streak-status-mark-empty::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.streak-status-mark-pending::before {
+  background: var(--accent);
+}
+
+.streak-status-mark-empty::before {
+  background: var(--muted);
+}
+
 .popup-projection {
   display: grid;
   gap: 6px;

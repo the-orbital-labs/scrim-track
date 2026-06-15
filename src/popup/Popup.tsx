@@ -273,6 +273,8 @@ function Popup() {
   const remainingHoursText =
     remainingHours <= 0 ? 'Path complete' : formatPathHours(remainingHours)
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
+  const currentStreak = streakStatus?.currentStreak ?? 0
+  const currentStreakUnit = currentStreak === 1 ? 'day' : 'days'
 
   return (
     <main className="popup-shell" aria-label="Scrimba Learning Tracker popup">
@@ -327,10 +329,23 @@ function Popup() {
       </section>
 
       <section className="popup-status-grid" aria-label="Current status">
-        <article className={`popup-status-card streak-state-${streakDisplay.tone}`}>
-          <span>Current streak</span>
-          <strong>{streakDisplay.currentLabel}</strong>
+        <article
+          className={`popup-status-card popup-streak-card streak-state-${streakDisplay.tone}`}
+          aria-label="Current streak"
+        >
+          <div className="popup-streak-header">
+            <span>Current streak</span>
+            <span
+              aria-hidden="true"
+              className={`streak-status-mark streak-status-mark-${streakDisplay.tone}`}
+            />
+          </div>
+          <div className="popup-streak-value">
+            <strong>{currentStreak}</strong>
+            <span>{currentStreakUnit}</span>
+          </div>
           <small>{streakDisplay.message}</small>
+          <span className="popup-streak-best">{streakDisplay.longestLabel}</span>
         </article>
         <article className="popup-status-card">
           <span>Weekly total</span>
