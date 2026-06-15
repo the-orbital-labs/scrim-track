@@ -216,7 +216,7 @@ function App() {
   }
 
   const syncProjection = (projection: PathProjection) => {
-    setFinishDateText(getFinishEstimateText(projection))
+    setFinishDateText(getFinishEstimateText(projection, 'full'))
     setAveragePaceSeconds(projection.averageDailySeconds)
     setCompletedHours(projection.completedHours)
     setRemainingHours(projection.remainingHours)
@@ -486,8 +486,8 @@ function App() {
             Average pace
             <strong>{averagePaceText}</strong>
           </span>
-          <span>
-            Projected finish
+          <span className="path-projection-message">
+            Projection
             <strong>{finishDateText}</strong>
           </span>
         </div>

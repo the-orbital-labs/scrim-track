@@ -10,7 +10,9 @@ export type PathProjection = {
   finishDate: string | null
   finishDateLabel: string | null
   pace: AveragePace
+  projectionFullMessage: string
   projectionMessage: string
+  projectionShortMessage: string
   remainingHours: number
 }
 
@@ -30,7 +32,7 @@ export type PathHourEstimate = {
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
 const finishDateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
+  month: 'long',
   day: 'numeric',
   year: 'numeric',
 })
@@ -66,12 +68,53 @@ export const formatPathHours = (hours: number): string => {
 export const formatFinishDate = (dateKey: string): string =>
   finishDateFormatter.format(parseLocalDateKey(dateKey))
 
-export const getFinishEstimateText = (projection: PathProjection): string => {
-  if (projection.daysRemaining === 0) {
-    return projection.projectionMessage
+export const getFinishEstimateText = (
+  projection: PathProjection,
+  variant: 'full' | 'short' = 'short',
+): string =>
+  variant === 'full'
+    ? projection.projectionFullMessage
+    : projection.projectionShortMessage
+
+const formatDayCount = (days: number): string =>
+  `${days} ${days === 1 ? 'day' : 'days'}`
+
+const isSameMonth = (first: Date, second: Date): boolean =>
+  first.getFullYear() === second.getFullYear() &&
+  first.getMonth() === second.getMonth()
+
+const getProjectionMessages = (
+  today: Date,
+  daysRemaining: number | null,
+  finishDateLabel: string | null,
+  finishDateValue: Date | null,
+) => {
+  if (daysRemaining === 0) {
+    return {
+      full: 'Path complete. Nice work.',
+      legacy: 'Path complete',
+      short: 'Path complete',
+    }
   }
 
-  return projection.finishDateLabel ?? projection.projectionMessage
+  if (daysRemaining === null || !finishDateLabel || !finishDateValue) {
+    return {
+      full: 'Study today to generate your finish estimate.',
+      legacy: 'Study on Scrimba to estimate',
+      short: 'Study today to estimate',
+    }
+  }
+
+  const full =
+    isSameMonth(today, finishDateValue)
+      ? `You're on pace to finish this month. Estimated finish date: ${finishDateLabel}.`
+      : `At your current pace, you may finish in ${formatDayCount(daysRemaining)}. Estimated finish date: ${finishDateLabel}.`
+
+  return {
+    full,
+    legacy: `Estimated finish ${finishDateLabel}`,
+    short: `Finish in ${formatDayCount(daysRemaining)}`,
+  }
 }
 
 export const calculatePathHourEstimate = (
@@ -174,6 +217,12 @@ export const getPathProjection = async (
 
   if (remainingHours <= 0) {
     const finishDate = getLocalDateKey(today)
+    const projectionMessages = getProjectionMessages(
+      today,
+      0,
+      formatFinishDate(finishDate),
+      today,
+    )
 
     return {
       averageDailySeconds: 0,
@@ -182,7 +231,9 @@ export const getPathProjection = async (
       finishDate,
       finishDateLabel: formatFinishDate(finishDate),
       pace,
-      projectionMessage: 'Path complete',
+      projectionFullMessage: projectionMessages.full,
+      projectionMessage: projectionMessages.legacy,
+      projectionShortMessage: projectionMessages.short,
       remainingHours: 0,
     }
   }
@@ -190,6 +241,8 @@ export const getPathProjection = async (
   const averageDailySeconds = pace.averageDailySeconds
 
   if (averageDailySeconds <= 0) {
+    const projectionMessages = getProjectionMessages(today, null, null, null)
+
     return {
       averageDailySeconds: 0,
       completedHours,
@@ -197,7 +250,9 @@ export const getPathProjection = async (
       finishDate: null,
       finishDateLabel: null,
       pace,
-      projectionMessage: 'Study on Scrimba to estimate',
+      projectionFullMessage: projectionMessages.full,
+      projectionMessage: projectionMessages.legacy,
+      projectionShortMessage: projectionMessages.short,
       remainingHours,
     }
   }
@@ -205,15 +260,24 @@ export const getPathProjection = async (
   const daysRemaining = Math.ceil((remainingHours * 60 * 60) / averageDailySeconds)
   const finishDate = new Date(today.getTime() + daysRemaining * dayInMilliseconds)
   const finishDateKey = getLocalDateKey(finishDate)
+  const finishDateLabel = formatFinishDate(finishDateKey)
+  const projectionMessages = getProjectionMessages(
+    today,
+    daysRemaining,
+    finishDateLabel,
+    finishDate,
+  )
 
   return {
     averageDailySeconds,
     completedHours,
     daysRemaining,
     finishDate: finishDateKey,
-    finishDateLabel: formatFinishDate(finishDateKey),
+    finishDateLabel,
     pace,
-    projectionMessage: `Estimated finish ${formatFinishDate(finishDateKey)}`,
+    projectionFullMessage: projectionMessages.full,
+    projectionMessage: projectionMessages.legacy,
+    projectionShortMessage: projectionMessages.short,
     remainingHours,
   }
 }
