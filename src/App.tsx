@@ -74,6 +74,28 @@ const getMonthLabel = (week: HeatmapWeek): string => {
   return firstMonthDay ? monthFormatter.format(parseLocalDateKey(firstMonthDay.date)) : ''
 }
 
+type SummaryStatCardProps = {
+  detail: string
+  isEmpty?: boolean
+  label: string
+  value: string
+}
+
+function SummaryStatCard({
+  detail,
+  isEmpty = false,
+  label,
+  value,
+}: SummaryStatCardProps) {
+  return (
+    <article className={`summary-stat-card ${isEmpty ? 'is-empty' : ''}`}>
+      <span className="metric-label">{label}</span>
+      <strong>{value}</strong>
+      <span className="summary-card-detail">{detail}</span>
+    </article>
+  )
+}
+
 function App() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
@@ -281,6 +303,10 @@ function App() {
   }
 
   const goalProgress = getGoalProgress(todayActivity, settings)
+  const todayActiveSeconds = goalProgress.activeSeconds
+  const weeklyActiveSeconds = weeklyTimeStats?.activeSeconds ?? 0
+  const monthlyActiveSeconds = monthlyTimeStats?.activeSeconds ?? 0
+  const allTimeActiveSeconds = allTimeStats?.activeSeconds ?? 0
   const progressText =
     goalProgress.goalSeconds > 0
       ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
@@ -320,6 +346,22 @@ function App() {
   const trackingStatusClass =
     settings?.trackingEnabled === false ? 'is-paused' : 'is-active'
   const currentDateText = fullDateFormatter.format(new Date())
+  const currentStreak = streakStatus?.currentStreak ?? 0
+  const currentStreakLabel = `${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}`
+  const todaySummaryDetail =
+    todayActiveSeconds > 0
+      ? goalProgress.isComplete
+        ? 'Goal complete today'
+        : 'Active Scrimba time'
+      : 'No activity yet'
+  const weeklySummaryDetail =
+    weeklyActiveSeconds > 0 ? weeklyAverageText : 'No activity this week'
+  const monthlySummaryDetail =
+    monthlyActiveSeconds > 0 ? monthlyActiveDaysText : 'No activity this month'
+  const streakSummaryDetail =
+    currentStreak > 0 ? streakDisplay.message : 'No streak yet'
+  const allTimeSummaryDetail =
+    allTimeActiveSeconds > 0 ? allTimeActiveDaysText : 'No tracked time yet'
 
   return (
     <main className="app-shell dashboard-shell">
@@ -339,37 +381,37 @@ function App() {
         </div>
       </header>
 
-      <section className="summary-grid" aria-label="Tracker setup status">
-        <article>
-          <span className="metric-label">Today</span>
-          <strong>{formatActiveTime(todayActivity?.activeSeconds ?? 0)}</strong>
-          <span>Active Scrimba time</span>
-        </article>
-        <article>
-          <span className="metric-label">This week</span>
-          <strong>{formatActiveTime(weeklyTimeStats?.activeSeconds ?? 0)}</strong>
-          <span>{weeklyAverageText}</span>
-        </article>
-        <article>
-          <span className="metric-label">This month</span>
-          <strong>{formatActiveTime(monthlyTimeStats?.activeSeconds ?? 0)}</strong>
-          <span>{monthlyActiveDaysText}</span>
-        </article>
-        <article>
-          <span className="metric-label">All time</span>
-          <strong>{formatActiveTime(allTimeStats?.activeSeconds ?? 0)}</strong>
-          <span>{allTimeActiveDaysText}</span>
-        </article>
-        <article>
-          <span className="metric-label">Streak</span>
-          <strong>{streakDisplay.currentLabel}</strong>
-          <span>{streakDisplay.longestLabel}</span>
-        </article>
-        <article>
-          <span className="metric-label">Goal</span>
-          <strong>{progressText}</strong>
-          <span>{goalProgress.isComplete ? 'Completed today' : 'Daily learning target'}</span>
-        </article>
+      <section className="summary-grid" aria-label="Key learning stats">
+        <SummaryStatCard
+          detail={todaySummaryDetail}
+          isEmpty={todayActiveSeconds === 0}
+          label="Today"
+          value={formatActiveTime(todayActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={weeklySummaryDetail}
+          isEmpty={weeklyActiveSeconds === 0}
+          label="This week"
+          value={formatActiveTime(weeklyActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={monthlySummaryDetail}
+          isEmpty={monthlyActiveSeconds === 0}
+          label="This month"
+          value={formatActiveTime(monthlyActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={streakSummaryDetail}
+          isEmpty={currentStreak === 0}
+          label="Current streak"
+          value={currentStreakLabel}
+        />
+        <SummaryStatCard
+          detail={allTimeSummaryDetail}
+          isEmpty={allTimeActiveSeconds === 0}
+          label="All-time"
+          value={formatActiveTime(allTimeActiveSeconds)}
+        />
       </section>
 
       <section className="panel weekly-summary-panel" aria-label="Weekly summary">

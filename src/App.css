@@ -89,11 +89,11 @@
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
-.summary-grid article,
+.summary-stat-card,
 .panel {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -101,23 +101,37 @@
   box-shadow: var(--shadow);
 }
 
-.summary-grid article {
+.summary-stat-card {
   display: grid;
-  gap: 8px;
-  min-height: 112px;
+  align-content: start;
+  gap: 10px;
+  min-height: 126px;
+  min-width: 0;
   padding: 16px;
 }
 
-.summary-grid strong {
+.summary-stat-card strong {
   color: var(--text-h);
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.summary-stat-card.is-empty strong {
+  color: var(--muted);
 }
 
 .metric-label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.summary-card-detail {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .panel {
@@ -1027,6 +1041,6 @@
 
 @media (min-width: 721px) and (max-width: 960px) {
   .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
