@@ -17,6 +17,21 @@
   padding-block: 12px;
 }
 
+.dashboard-date {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--accent);
@@ -37,6 +52,39 @@
   background: var(--surface);
   font-size: 13px;
   font-weight: 700;
+}
+
+.status-pill.is-paused {
+  color: #b42318;
+}
+
+.settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: var(--text-h);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.settings-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.settings-link:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+#dashboard-settings {
+  scroll-margin-top: 16px;
 }
 
 .summary-grid {
@@ -970,6 +1018,10 @@
 
   .dashboard-header {
     display: grid;
+  }
+
+  .dashboard-header-actions {
+    justify-content: flex-start;
   }
 }
 

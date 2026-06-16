@@ -48,6 +48,12 @@ import type { WeeklySummary } from './weeklySummary'
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' })
+const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'long',
+  weekday: 'long',
+  year: 'numeric',
+})
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
@@ -309,6 +315,11 @@ function App() {
     heatmapGrid?.weeks
       .flatMap((week) => week.days)
       .filter((day) => !day.isOutsideRange && day.activeSeconds > 0).length ?? 0
+  const trackingStatusText =
+    settings?.trackingEnabled === false ? 'Tracking paused' : 'Tracking on'
+  const trackingStatusClass =
+    settings?.trackingEnabled === false ? 'is-paused' : 'is-active'
+  const currentDateText = fullDateFormatter.format(new Date())
 
   return (
     <main className="app-shell dashboard-shell">
@@ -316,8 +327,16 @@ function App() {
         <div>
           <p className="eyebrow">Local-first Chrome extension</p>
           <h1>Scrimba Learning Tracker</h1>
+          <p className="dashboard-date">{currentDateText}</p>
         </div>
-        <span className="status-pill">Base setup ready</span>
+        <div className="dashboard-header-actions">
+          <span className={`status-pill ${trackingStatusClass}`}>
+            {trackingStatusText}
+          </span>
+          <a className="settings-link" href="#dashboard-settings">
+            Settings
+          </a>
+        </div>
       </header>
 
       <section className="summary-grid" aria-label="Tracker setup status">
@@ -494,7 +513,7 @@ function App() {
         {pathError ? <span className="error-text">{pathError}</span> : null}
       </section>
 
-      <section className="panel">
+      <section className="panel" id="dashboard-settings">
         <h2>Daily Goal</h2>
         <div className={`streak-state streak-state-${streakDisplay.tone}`}>
           <strong>{streakDisplay.currentLabel}</strong>
