@@ -1,5 +1,5 @@
 import { getStorageValue, setStorageValue, updateStorageValue } from './storage'
-import type { UserSettings } from './storage'
+import type { CurrentScrimbaPage, UserSettings } from './storage'
 import { calculateStreakStatus } from './streak'
 
 const maxDailyGoalSeconds = 24 * 60 * 60
@@ -32,6 +32,59 @@ const normalizeTimezone = (timezone: string): string => {
   } catch {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   }
+}
+
+const pauseCurrentTrackingSession = async (pausedAt: string): Promise<void> => {
+  const currentScrimbaPage = await getStorageValue('currentScrimbaPage')
+
+  if (!currentScrimbaPage) {
+    return
+  }
+
+  await Promise.all([
+    setStorageValue('currentScrimbaPage', {
+      ...currentScrimbaPage,
+      isActive: false,
+      isIdle: true,
+      lastInactiveAt: pausedAt,
+      lastIdleAt: pausedAt,
+    }),
+    markSessionInactive(currentScrimbaPage, pausedAt),
+  ])
+}
+
+const markSessionInactive = (
+  currentScrimbaPage: CurrentScrimbaPage,
+  pausedAt: string,
+): Promise<unknown> => {
+  if (!currentScrimbaPage) {
+    return Promise.resolve()
+  }
+
+  return updateStorageValue('dailyActivities', (activities) => {
+    let didUpdate = false
+    const nextActivities = Object.fromEntries(
+      Object.entries(activities).map(([date, activity]) => {
+        const sessions = activity.sessions.map((session) => {
+          if (session.id !== currentScrimbaPage.sessionId) {
+            return session
+          }
+
+          didUpdate = true
+
+          return {
+            ...session,
+            isActive: false,
+            endedAt: session.endedAt ?? pausedAt,
+          }
+        })
+
+        return [date, didUpdate ? { ...activity, sessions } : activity]
+      }),
+    )
+
+    return didUpdate ? nextActivities : activities
+  })
 }
 
 export const getUserSettings = (): Promise<UserSettings> =>
@@ -78,13 +131,20 @@ export const saveIdleTimeout = (
     idleTimeoutSeconds: toNonNegativeSeconds(idleTimeoutSeconds),
   }))
 
-export const saveTrackingEnabled = (
+export const saveTrackingEnabled = async (
   trackingEnabled: boolean,
-): Promise<UserSettings> =>
-  updateStorageValue('userSettings', (settings) => ({
+): Promise<UserSettings> => {
+  const settings = await updateStorageValue('userSettings', (settings) => ({
     ...settings,
     trackingEnabled,
   }))
+
+  if (!trackingEnabled) {
+    await pauseCurrentTrackingSession(new Date().toISOString())
+  }
+
+  return settings
+}
 
 export const saveTimezone = (timezone: string): Promise<UserSettings> =>
   updateStorageValue('userSettings', (settings) => ({

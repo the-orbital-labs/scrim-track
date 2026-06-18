@@ -24,7 +24,12 @@ import {
   getPathProjection,
 } from './projection'
 import type { PathProjection } from './projection'
-import { getUserSettings, saveDailyGoal, saveIdleTimeout } from './settings'
+import {
+  getUserSettings,
+  saveDailyGoal,
+  saveIdleTimeout,
+  saveTrackingEnabled,
+} from './settings'
 import { getStorageValue } from './storage'
 import type {
   AverageWindowDays,
@@ -150,6 +155,7 @@ function App() {
   const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
   const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('2')
   const [idleTimeoutStatusText, setIdleTimeoutStatusText] = useState<string | null>(null)
+  const [trackingStatusMessage, setTrackingStatusMessage] = useState<string | null>(null)
   const [heatmapPeriod, setHeatmapPeriod] = useState<HeatmapPeriod>('year')
   const [pathName, setPathName] = useState('')
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
@@ -302,6 +308,27 @@ function App() {
       setIdleTimeoutStatusText(
         `Saved ${formatTimeoutMinutes(minutes)} idle timeout.`,
       )
+    })
+  }
+
+  const toggleTracking = () => {
+    if (!settings) {
+      return
+    }
+
+    const nextTrackingEnabled = !settings.trackingEnabled
+
+    setTrackingStatusMessage(
+      nextTrackingEnabled ? 'Resuming tracking...' : 'Pausing tracking...',
+    )
+    void saveTrackingEnabled(nextTrackingEnabled).then((nextSettings) => {
+      setSettings(nextSettings)
+      setTrackingStatusMessage(
+        nextSettings.trackingEnabled
+          ? 'Tracking is on. Scrimba activity will be counted.'
+          : 'Tracking is paused. No Scrimba activity will be counted.',
+      )
+      refreshTodayActivity()
     })
   }
 
@@ -941,6 +968,27 @@ function App() {
             <strong>{currentIdleTimeoutText}</strong>
           </span>
         </div>
+
+        <label className="tracking-toggle-card">
+          <span>
+            <strong>{trackingStatusText}</strong>
+            <small>
+              {settings?.trackingEnabled === false
+                ? 'No Scrimba activity is being tracked.'
+                : 'Scrimba activity is being tracked when pages are active.'}
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings?.trackingEnabled ?? true}
+            onChange={toggleTracking}
+          />
+        </label>
+        {trackingStatusMessage ? (
+          <span className="save-status" role="status" aria-live="polite">
+            {trackingStatusMessage}
+          </span>
+        ) : null}
 
         <p className="settings-help-text">
           Idle timeout is how long Scrimba can sit without mouse, keyboard, scroll, or touch activity before tracking pauses.

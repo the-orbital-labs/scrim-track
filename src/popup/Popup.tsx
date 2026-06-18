@@ -97,6 +97,7 @@ function Popup() {
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
   const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
   const [idleTimeoutStatusText, setIdleTimeoutStatusText] = useState<string | null>(null)
+  const [trackingStatusMessage, setTrackingStatusMessage] = useState<string | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
 
   const refreshProjection = () => {
@@ -294,7 +295,20 @@ function Popup() {
       return
     }
 
-    void saveTrackingEnabled(!settings.trackingEnabled).then(setSettings)
+    const nextTrackingEnabled = !settings.trackingEnabled
+
+    setTrackingStatusMessage(
+      nextTrackingEnabled ? 'Resuming tracking...' : 'Pausing tracking...',
+    )
+    void saveTrackingEnabled(nextTrackingEnabled).then((nextSettings) => {
+      setSettings(nextSettings)
+      setTrackingStatusMessage(
+        nextSettings.trackingEnabled
+          ? 'Tracking is on. Scrimba activity will be counted.'
+          : 'Tracking is paused. No Scrimba activity will be counted.',
+      )
+      refreshTodayActivity()
+    })
   }
 
   const goalProgress = getGoalProgress(todayActivity, settings)
@@ -328,16 +342,34 @@ function Popup() {
   const currentStreakUnit = currentStreak === 1 ? 'day' : 'days'
 
   return (
-    <main className="popup-shell" aria-label="Scrimba Learning Tracker popup">
+    <main
+      className={[
+        'popup-shell',
+        settings?.trackingEnabled === false ? 'is-tracking-paused' : '',
+      ].filter(Boolean).join(' ')}
+      aria-label="Scrimba Learning Tracker popup"
+    >
       <header className="popup-header">
         <div>
           <p className="eyebrow">Scrimba tracker</p>
           <h1>{settings?.trackingEnabled === false ? 'Paused' : 'Learning status'}</h1>
         </div>
-        <span className="status-pill">
+        <span
+          className={[
+            'status-pill',
+            settings?.trackingEnabled === false ? 'is-paused' : 'is-active',
+          ].filter(Boolean).join(' ')}
+        >
           {settings?.trackingEnabled === false ? 'Paused' : 'Tracking on'}
         </span>
       </header>
+
+      {settings?.trackingEnabled === false ? (
+        <section className="paused-notice" aria-label="Tracking paused">
+          <strong>Tracking is paused</strong>
+          <span>No Scrimba activity will be counted until you turn tracking back on.</span>
+        </section>
+      ) : null}
 
       <section
         className={[
@@ -454,13 +486,25 @@ function Popup() {
 
         <section className="settings-panel" aria-label="Tracking settings">
           <label className="toggle-row">
-            <span>Tracking</span>
+            <span>
+              Tracking
+              <small>
+                {settings?.trackingEnabled === false
+                  ? 'Paused across Scrimba pages'
+                  : 'Counting active Scrimba time'}
+              </small>
+            </span>
             <input
               type="checkbox"
               checked={settings?.trackingEnabled ?? true}
               onChange={toggleTracking}
             />
           </label>
+          {trackingStatusMessage ? (
+            <span className="save-status" role="status" aria-live="polite">
+              {trackingStatusMessage}
+            </span>
+          ) : null}
 
           <label>
             <span>Daily goal</span>
