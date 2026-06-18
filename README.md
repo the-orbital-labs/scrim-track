@@ -15,3 +15,8 @@ Privacy:
 - The MVP does not require accounts or authentication.
 - The MVP does not send learning data to a backend server.
 - External analytics are not enabled by default.
+
+Permissions:
+- `storage` saves activity, sessions, streaks, settings, and path projection data locally.
+- Scrimba host access is limited to `https://scrimba.com/*` and `https://v2.scrimba.com/*`.
+- The extension does not request browsing history, tabs, bookmarks, cookies, `webRequest`, `browsingData`, or `<all_urls>` access.

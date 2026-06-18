@@ -19,6 +19,13 @@ Privacy-first MVP:
 
 You can export your local data as JSON or reset it from the extension settings.
 
+## Permissions
+
+- `storage`: Saves activity, sessions, streaks, settings, and path projection data locally on the user's device.
+- `https://scrimba.com/*` and `https://v2.scrimba.com/*`: Runs the tracker only on Scrimba pages.
+
+The extension does not request browsing history, tabs, bookmarks, cookies, `webRequest`, `browsingData`, or `<all_urls>` access.
+
 ## Data Practices
 
 Scrimba Learning Tracker stores learning activity, sessions, streaks, settings, and path projection data locally on the user's device. The extension does not sell, transfer, or remotely process learning data.
