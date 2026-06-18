@@ -131,6 +131,7 @@ function App() {
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress | null>(null)
   const [finishDateText, setFinishDateText] = useState('Study on Scrimba to estimate')
+  const [finishDateLabel, setFinishDateLabel] = useState('Not estimated yet')
   const [averagePaceSeconds, setAveragePaceSeconds] = useState(0)
   const [completedHours, setCompletedHours] = useState(0)
   const [remainingHours, setRemainingHours] = useState(0)
@@ -269,6 +270,7 @@ function App() {
 
   const syncProjection = (projection: PathProjection) => {
     setFinishDateText(getFinishEstimateText(projection, 'full'))
+    setFinishDateLabel(projection.finishDateLabel ?? 'Not estimated yet')
     setAveragePaceSeconds(projection.averageDailySeconds)
     setCompletedHours(projection.completedHours)
     setRemainingHours(projection.remainingHours)
@@ -347,6 +349,12 @@ function App() {
   const pathStatusText = pathProgress?.pathName
     ? `${pathProgress.pathName} - ${pathProgress.progressPercentage}% complete`
     : 'No path set'
+  const pathNameDisplay = pathProgress?.pathName || 'No path set'
+  const paceWindowLabel =
+    pathProgress?.averageWindowDays === 'all'
+      ? 'All-time average'
+      : `${pathProgress?.averageWindowDays ?? 7}-day average`
+  const pathCompletionPercentage = pathProgress?.progressPercentage ?? 0
   const averagePaceText = formatHoursPerDay(averagePaceSeconds)
   const completedHoursText = formatPathHours(completedHours)
   const remainingHoursText =
@@ -592,6 +600,48 @@ function App() {
         </div>
       </section>
 
+      <section className="panel pace-panel" aria-labelledby="pace-title">
+        <div className="pace-header">
+          <div>
+            <p className="eyebrow">Path projection</p>
+            <h2 id="pace-title">Learning Pace</h2>
+          </div>
+          <a className="secondary-button" href="#path-setup">
+            Edit path
+          </a>
+        </div>
+
+        <div className="pace-path-card">
+          <span>Current path</span>
+          <strong>{pathNameDisplay}</strong>
+          <div className="pace-progress-row">
+            <span>{pathCompletionPercentage}% complete</span>
+            <span>{completedHoursText} logged</span>
+          </div>
+          <div className="progress-track" aria-hidden="true">
+            <span style={{ width: `${pathCompletionPercentage}%` }} />
+          </div>
+        </div>
+
+        <div className="pace-stat-grid" aria-label="Path pace summary">
+          <span>
+            Average pace
+            <strong>{averagePaceText}</strong>
+            <small>{paceWindowLabel}</small>
+          </span>
+          <span>
+            Remaining
+            <strong>{remainingHoursText}</strong>
+            <small>estimated path time</small>
+          </span>
+          <span>
+            Finish date
+            <strong>{finishDateLabel}</strong>
+            <small>{finishDateText}</small>
+          </span>
+        </div>
+      </section>
+
       <section className="panel weekly-summary-panel" aria-label="Weekly summary">
         <div className="panel-heading-row">
           <h2>Weekly Summary</h2>
@@ -648,7 +698,7 @@ function App() {
         </div>
       </section>
 
-      <section className="panel path-setup-panel" aria-label="Path setup">
+      <section className="panel path-setup-panel" id="path-setup" aria-label="Path setup">
         <div className="panel-heading-row">
           <h2>Path Setup</h2>
           <span>{pathStatusText}</span>

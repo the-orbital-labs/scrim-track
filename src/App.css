@@ -87,6 +87,10 @@
   scroll-margin-top: 16px;
 }
 
+#path-setup {
+  scroll-margin-top: 16px;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -300,6 +304,108 @@
 .weekly-comparison-no-change strong,
 .weekly-comparison-no-change small {
   color: var(--muted);
+}
+
+.pace-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.pace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.secondary-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px;
+  color: var(--text-h);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.secondary-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pace-path-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.pace-path-card > span,
+.pace-progress-row,
+.pace-stat-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pace-path-card strong {
+  overflow-wrap: anywhere;
+  color: var(--text-h);
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.pace-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pace-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pace-stat-grid span {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+
+.pace-stat-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--text-h);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.pace-stat-grid small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .check-list {
@@ -1128,6 +1234,18 @@
   }
 
   .weekly-summary-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .pace-header {
+    display: grid;
+  }
+
+  .secondary-button {
+    width: 100%;
+  }
+
+  .pace-stat-grid {
     grid-template-columns: 1fr;
   }
 
