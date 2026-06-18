@@ -1313,12 +1313,30 @@
   gap: 14px;
 }
 
-.path-setup-grid label {
+.path-setup-grid label,
+.path-setting-field {
   display: grid;
   gap: 6px;
   color: var(--text-h);
   font-size: 13px;
   font-weight: 700;
+}
+
+.path-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-row.path-setting-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.path-setting-row .secondary-button {
+  width: auto;
+  min-height: 36px;
+  padding-inline: 10px;
 }
 
 .path-setup-grid input[type='number'],
@@ -1371,6 +1389,10 @@
 
 .dashboard-input-row {
   max-width: 180px;
+}
+
+.dashboard-input-row.path-setting-row {
+  max-width: 340px;
 }
 
 .error-text {
@@ -1467,6 +1489,11 @@
 
   .path-setup-grid {
     grid-template-columns: 1fr;
+  }
+
+  .path-setting-row,
+  .input-row.path-setting-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .path-setup-stats {

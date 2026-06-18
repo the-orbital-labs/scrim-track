@@ -161,6 +161,7 @@ function App() {
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
   const [progressPercentage, setProgressPercentage] = useState('0')
   const [pathError, setPathError] = useState<string | null>(null)
+  const [pathSaveStatusText, setPathSaveStatusText] = useState<string | null>(null)
 
   const refreshTodayActivity = () => {
     void Promise.all([
@@ -358,11 +359,16 @@ function App() {
   const savePathNameValue = () => {
     if (!isValidPathName(pathName)) {
       setPathError('Enter a path name.')
+      setPathSaveStatusText(null)
       setPathName(pathProgress?.pathName ?? '')
       return
     }
 
-    void savePathName(pathName).then(syncPathProgress)
+    setPathSaveStatusText('Saving path name...')
+    void savePathName(pathName).then((nextPathProgress) => {
+      syncPathProgress(nextPathProgress)
+      setPathSaveStatusText('Saved path name.')
+    })
   }
 
   const saveTotalEstimatedHoursValue = () => {
@@ -370,11 +376,16 @@ function App() {
 
     if (!isValidTotalEstimatedHours(hours)) {
       setPathError('Total estimate must be greater than 0 hours.')
+      setPathSaveStatusText(null)
       setTotalEstimatedHours(String(pathProgress?.totalEstimatedHours ?? 1))
       return
     }
 
-    void saveTotalEstimatedHours(hours).then(syncPathProgress)
+    setPathSaveStatusText('Saving total estimate...')
+    void saveTotalEstimatedHours(hours).then((nextPathProgress) => {
+      syncPathProgress(nextPathProgress)
+      setPathSaveStatusText('Saved total estimate.')
+    })
   }
 
   const saveProgressPercentageValue = () => {
@@ -382,20 +393,30 @@ function App() {
 
     if (!isValidProgressPercentage(percentage)) {
       setPathError('Progress must be between 0 and 100%.')
+      setPathSaveStatusText(null)
       setProgressPercentage(String(pathProgress?.progressPercentage ?? 0))
       return
     }
 
-    void saveProgressPercentage(percentage).then(syncPathProgress)
+    setPathSaveStatusText('Saving progress...')
+    void saveProgressPercentage(percentage).then((nextPathProgress) => {
+      syncPathProgress(nextPathProgress)
+      setPathSaveStatusText('Saved progress.')
+    })
   }
 
   const saveAverageWindowValue = (averageWindowDays: AverageWindowDays) => {
     if (!isValidAverageWindowDays(averageWindowDays)) {
       setPathError('Choose a valid average window.')
+      setPathSaveStatusText(null)
       return
     }
 
-    void saveAverageWindowDays(averageWindowDays).then(syncPathProgress)
+    setPathSaveStatusText('Saving average window...')
+    void saveAverageWindowDays(averageWindowDays).then((nextPathProgress) => {
+      syncPathProgress(nextPathProgress)
+      setPathSaveStatusText('Saved average window.')
+    })
   }
 
   const goalProgress = getGoalProgress(todayActivity, settings)
@@ -804,50 +825,77 @@ function App() {
         </div>
 
         <div className="path-setup-grid">
-          <label>
-            <span>Path name</span>
-            <input
-              type="text"
-              value={pathName}
-              onBlur={savePathNameValue}
-              onChange={(event) => setPathName(event.target.value)}
-            />
-          </label>
-
-          <label>
-            <span>Total estimate</span>
-            <div className="input-row dashboard-input-row">
+          <div className="path-setting-field">
+            <label htmlFor="dashboard-path-name">Path name</label>
+            <div className="path-setting-row">
               <input
+                id="dashboard-path-name"
+                type="text"
+                value={pathName}
+                onChange={(event) => setPathName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    savePathNameValue()
+                  }
+                }}
+              />
+              <button type="button" className="secondary-button" onClick={savePathNameValue}>
+                Save
+              </button>
+            </div>
+          </div>
+
+          <div className="path-setting-field">
+            <label htmlFor="dashboard-total-estimate">Total estimate</label>
+            <div className="input-row dashboard-input-row path-setting-row">
+              <input
+                id="dashboard-total-estimate"
                 min="0.1"
                 step="0.5"
                 type="number"
                 value={totalEstimatedHours}
-                onBlur={saveTotalEstimatedHoursValue}
                 onChange={(event) => setTotalEstimatedHours(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    saveTotalEstimatedHoursValue()
+                  }
+                }}
               />
               <span>hr</span>
+              <button type="button" className="secondary-button" onClick={saveTotalEstimatedHoursValue}>
+                Save
+              </button>
             </div>
-          </label>
+          </div>
 
-          <label>
-            <span>Progress</span>
-            <div className="input-row dashboard-input-row">
+          <div className="path-setting-field">
+            <label htmlFor="dashboard-path-progress">Progress</label>
+            <div className="input-row dashboard-input-row path-setting-row">
               <input
+                id="dashboard-path-progress"
                 max="100"
                 min="0"
                 step="1"
                 type="number"
                 value={progressPercentage}
-                onBlur={saveProgressPercentageValue}
                 onChange={(event) => setProgressPercentage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    saveProgressPercentageValue()
+                  }
+                }}
               />
               <span>%</span>
+              <button type="button" className="secondary-button" onClick={saveProgressPercentageValue}>
+                Save
+              </button>
             </div>
-          </label>
+          </div>
 
-          <label>
-            <span>Average window</span>
+          <div className="path-setting-field">
+            <label htmlFor="dashboard-average-window">Average window</label>
             <select
+              id="dashboard-average-window"
               value={pathProgress?.averageWindowDays ?? 7}
               onChange={(event) => {
                 saveAverageWindowValue(parseAverageWindowDays(event.target.value))
@@ -858,7 +906,7 @@ function App() {
               <option value="30">30 days</option>
               <option value="all">All time</option>
             </select>
-          </label>
+          </div>
         </div>
 
         <div className="path-setup-stats">
@@ -880,6 +928,11 @@ function App() {
           </span>
         </div>
         {pathError ? <span className="error-text">{pathError}</span> : null}
+        {pathSaveStatusText ? (
+          <span className="save-status" role="status" aria-live="polite">
+            {pathSaveStatusText}
+          </span>
+        ) : null}
       </section>
 
       <section className="panel" id="dashboard-settings">
