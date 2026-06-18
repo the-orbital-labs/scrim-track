@@ -576,6 +576,13 @@ function Popup() {
             </span>
           ) : null}
 
+          <section className="privacy-note-panel" aria-label="Privacy note">
+            <span>Local-only data</span>
+            <p className="settings-help-text">
+              Your learning data stays on this device in Chrome storage. No accounts, server sync, or external analytics are used by default.
+            </p>
+          </section>
+
           <label>
             <span>Daily goal</span>
             <span className="settings-current-value">

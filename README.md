@@ -9,3 +9,9 @@ MVP:
 - Build streaks
 - Show heatmap
 - Add dashboard
+
+Privacy:
+- Learning data stays on the user's device in `chrome.storage.local`.
+- The MVP does not require accounts or authentication.
+- The MVP does not send learning data to a backend server.
+- External analytics are not enabled by default.

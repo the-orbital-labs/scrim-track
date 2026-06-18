@@ -1119,6 +1119,16 @@ function App() {
         </div>
       </section>
 
+      <section className="panel privacy-note-panel" aria-label="Privacy note">
+        <div>
+          <p className="eyebrow">Privacy</p>
+          <h2>Local-only data</h2>
+        </div>
+        <p className="settings-help-text">
+          Your learning data stays on this device in Chrome storage. Scrimba Learning Tracker does not create accounts, send learning data to a server, or run external analytics by default.
+        </p>
+      </section>
+
       <section className="panel data-reset-panel" aria-label="Data reset">
         <div>
           <p className="eyebrow">Local data</p>

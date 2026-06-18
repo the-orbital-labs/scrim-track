@@ -1005,6 +1005,21 @@
   line-height: 1.45;
 }
 
+.privacy-note-panel {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--success) 35%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--success) 7%, var(--surface));
+}
+
+.privacy-note-panel > span {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .idle-timeout-presets {
   max-width: 420px;
 }
