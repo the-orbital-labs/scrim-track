@@ -68,6 +68,10 @@ export type StorageSchema = {
 
 export type StorageKey = keyof StorageSchema
 
+export type ResetLocalDataOptions = {
+  resetSettings: boolean
+}
+
 const defaultStorageValues: StorageSchema = {
   extensionStatus: {
     installedAt: null,
@@ -192,4 +196,34 @@ export const updateStorageValue = async <Key extends StorageKey>(
   await setStorageValue(key, nextValue)
 
   return nextValue
+}
+
+export const resetLocalData = async ({
+  resetSettings,
+}: ResetLocalDataOptions): Promise<StorageSchema> => {
+  const nextUserSettings = resetSettings
+    ? getDefaultStorageValue('userSettings')
+    : await getStorageValue('userSettings')
+  const nextPathProgress = resetSettings
+    ? getDefaultStorageValue('pathProgress')
+    : await getStorageValue('pathProgress')
+
+  const nextStorage: StorageSchema = {
+    extensionStatus: await getStorageValue('extensionStatus'),
+    currentScrimbaPage: getDefaultStorageValue('currentScrimbaPage'),
+    dailyActivities: getDefaultStorageValue('dailyActivities'),
+    streakStatus: getDefaultStorageValue('streakStatus'),
+    userSettings: nextUserSettings,
+    pathProgress: nextPathProgress,
+  }
+
+  await Promise.all([
+    setStorageValue('currentScrimbaPage', nextStorage.currentScrimbaPage),
+    setStorageValue('dailyActivities', nextStorage.dailyActivities),
+    setStorageValue('streakStatus', nextStorage.streakStatus),
+    setStorageValue('userSettings', nextStorage.userSettings),
+    setStorageValue('pathProgress', nextStorage.pathProgress),
+  ])
+
+  return nextStorage
 }

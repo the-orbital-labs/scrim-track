@@ -403,6 +403,33 @@
   outline-offset: 2px;
 }
 
+.danger-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 1px solid color-mix(in srgb, #b42318 55%, var(--border));
+  border-radius: 7px;
+  padding: 8px 12px;
+  color: #b42318;
+  background: color-mix(in srgb, #b42318 8%, var(--surface));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-button:hover {
+  color: white;
+  background: #b42318;
+}
+
+.danger-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .pace-path-card {
   display: grid;
   gap: 10px;
@@ -980,6 +1007,18 @@
 
 .idle-timeout-presets {
   max-width: 420px;
+}
+
+.data-reset-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.reset-action-grid {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .dashboard-input-row.goal-custom-row {

@@ -31,7 +31,7 @@ import {
   saveTimezone,
   saveTrackingEnabled,
 } from '../settings'
-import { getStorageValue } from '../storage'
+import { getStorageValue, resetLocalData } from '../storage'
 import type {
   AverageWindowDays,
   DailyActivity,
@@ -100,6 +100,7 @@ function Popup() {
   const [trackingStatusMessage, setTrackingStatusMessage] = useState<string | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
   const [pathSaveStatusText, setPathSaveStatusText] = useState<string | null>(null)
+  const [resetStatusText, setResetStatusText] = useState<string | null>(null)
 
   const refreshProjection = () => {
     void getPathProjection().then((projection) => {
@@ -329,6 +330,43 @@ function Popup() {
           : 'Tracking is paused. No Scrimba activity will be counted.',
       )
       refreshTodayActivity()
+    })
+  }
+
+  const resetData = (resetSettings: boolean) => {
+    const message = resetSettings
+      ? 'Delete all local activity, sessions, streaks, path settings, and app settings? This cannot be undone.'
+      : 'Delete all local activity, sessions, and streaks while keeping your settings? This cannot be undone.'
+
+    if (!window.confirm(message)) {
+      return
+    }
+
+    setResetStatusText('Resetting local data...')
+    void resetLocalData({ resetSettings }).then((nextStorage) => {
+      setSettings(nextStorage.userSettings)
+      setStreakStatus(nextStorage.streakStatus)
+      setPathProgress(nextStorage.pathProgress)
+      setPathName(nextStorage.pathProgress.pathName)
+      setTotalEstimatedHours(String(nextStorage.pathProgress.totalEstimatedHours))
+      setProgressPercentage(String(nextStorage.pathProgress.progressPercentage))
+      setDailyGoalMinutes(String(secondsToMinutes(nextStorage.userSettings.dailyGoalSeconds)))
+      setIdleTimeoutMinutes(
+        String(secondsToMinutes(nextStorage.userSettings.idleTimeoutSeconds)),
+      )
+      setDailyGoalError(null)
+      setDailyGoalStatusText(null)
+      setIdleTimeoutStatusText(null)
+      setTrackingStatusMessage(null)
+      setPathError(null)
+      setPathSaveStatusText(null)
+      setResetStatusText(
+        resetSettings
+          ? 'All local data and settings were reset.'
+          : 'Activity data, sessions, and streaks were reset. Settings were kept.',
+      )
+      refreshTodayActivity()
+      refreshProjection()
     })
   }
 
@@ -708,6 +746,34 @@ function Popup() {
           {pathSaveStatusText ? (
             <span className="save-status" role="status" aria-live="polite">
               {pathSaveStatusText}
+            </span>
+          ) : null}
+        </section>
+
+        <section className="settings-panel data-reset-panel" aria-label="Data reset">
+          <span>Reset data</span>
+          <p className="settings-help-text">
+            Deletes tracked Scrimba activity, saved sessions, and streak history from this device.
+          </p>
+          <div className="reset-action-grid">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => resetData(false)}
+            >
+              Reset activity only
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              onClick={() => resetData(true)}
+            >
+              Reset all
+            </button>
+          </div>
+          {resetStatusText ? (
+            <span className="save-status" role="status" aria-live="polite">
+              {resetStatusText}
             </span>
           ) : null}
         </section>
