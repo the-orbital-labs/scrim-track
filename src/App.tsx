@@ -24,7 +24,7 @@ import {
   getPathProjection,
 } from './projection'
 import type { PathProjection } from './projection'
-import { getUserSettings, saveDailyGoal } from './settings'
+import { getUserSettings, saveDailyGoal, saveIdleTimeout } from './settings'
 import { getStorageValue } from './storage'
 import type {
   AverageWindowDays,
@@ -46,6 +46,7 @@ import { getCurrentWeekSummary } from './weeklySummary'
 import type { WeeklySummary } from './weeklySummary'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+const idleTimeoutPresetMinutes = [1, 2, 5, 10] as const
 const heatmapPeriodOptions = ['year', 'month', 'week'] as const
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' })
@@ -72,8 +73,14 @@ const heatmapPeriodLabels: Record<HeatmapPeriod, string> = {
 const pluralizeActiveDays = (count: number): string =>
   `${count} active ${count === 1 ? 'day' : 'days'}`
 
+const formatTimeoutMinutes = (minutes: number): string =>
+  `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
+
+const isValidIdleTimeoutMinutes = (value: number): boolean =>
+  Number.isInteger(value) && value > 0 && value <= 60
 
 const parseLocalDateKey = (dateKey: string): Date => {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -141,6 +148,8 @@ function App() {
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
   const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
+  const [idleTimeoutMinutes, setIdleTimeoutMinutes] = useState('2')
+  const [idleTimeoutStatusText, setIdleTimeoutStatusText] = useState<string | null>(null)
   const [heatmapPeriod, setHeatmapPeriod] = useState<HeatmapPeriod>('year')
   const [pathName, setPathName] = useState('')
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
@@ -234,6 +243,9 @@ function App() {
         setDailyGoalMinutes(
           String(secondsToMinutes(loadedSettings.dailyGoalSeconds)),
         )
+        setIdleTimeoutMinutes(
+          String(secondsToMinutes(loadedSettings.idleTimeoutSeconds)),
+        )
       },
     )
 
@@ -271,6 +283,26 @@ function App() {
 
   const saveCustomGoal = () => {
     saveGoalMinutes(Number(dailyGoalMinutes))
+  }
+
+  const saveIdleTimeoutMinutes = (minutes: number) => {
+    if (!isValidIdleTimeoutMinutes(minutes)) {
+      setIdleTimeoutStatusText('Choose a timeout between 1 and 60 minutes.')
+      setIdleTimeoutMinutes(
+        settings ? String(secondsToMinutes(settings.idleTimeoutSeconds)) : '2',
+      )
+      return
+    }
+
+    setIdleTimeoutStatusText('Saving idle timeout...')
+    setIdleTimeoutMinutes(String(minutes))
+    void saveIdleTimeout(minutes * 60).then((nextSettings) => {
+      setSettings(nextSettings)
+      setIdleTimeoutMinutes(String(secondsToMinutes(nextSettings.idleTimeoutSeconds)))
+      setIdleTimeoutStatusText(
+        `Saved ${formatTimeoutMinutes(minutes)} idle timeout.`,
+      )
+    })
   }
 
   const refreshProjection = () => {
@@ -351,6 +383,10 @@ function App() {
   const currentDailyGoalText =
     settings && settings.dailyGoalSeconds > 0
       ? formatActiveTime(settings.dailyGoalSeconds)
+      : 'Not set'
+  const currentIdleTimeoutText =
+    settings && settings.idleTimeoutSeconds > 0
+      ? formatActiveTime(settings.idleTimeoutSeconds)
       : 'Not set'
   const weeklyAverageText = `${formatActiveTime(
     weeklyTimeStats?.averageSecondsPerDay ?? 0,
@@ -889,6 +925,45 @@ function App() {
           {dailyGoalStatusText ? (
             <span className="save-status" role="status" aria-live="polite">
               {dailyGoalStatusText}
+            </span>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="panel idle-timeout-panel" id="idle-timeout-settings">
+        <div className="goal-settings-header">
+          <div>
+            <p className="eyebrow">Tracking settings</p>
+            <h2>Idle Timeout</h2>
+          </div>
+          <span>
+            Current timeout
+            <strong>{currentIdleTimeoutText}</strong>
+          </span>
+        </div>
+
+        <p className="settings-help-text">
+          Idle timeout is how long Scrimba can sit without mouse, keyboard, scroll, or touch activity before tracking pauses.
+        </p>
+
+        <div className="goal-control" role="group" aria-label="Idle timeout presets">
+          <div className="segmented-control idle-timeout-presets">
+            {idleTimeoutPresetMinutes.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                className={
+                  Number(idleTimeoutMinutes) === minutes ? 'is-selected' : undefined
+                }
+                onClick={() => saveIdleTimeoutMinutes(minutes)}
+              >
+                {minutes}m
+              </button>
+            ))}
+          </div>
+          {idleTimeoutStatusText ? (
+            <span className="save-status" role="status" aria-live="polite">
+              {idleTimeoutStatusText}
             </span>
           ) : null}
         </div>

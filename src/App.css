@@ -892,6 +892,22 @@
   padding-inline: 10px;
 }
 
+.idle-timeout-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-help-text {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.idle-timeout-presets {
+  max-width: 420px;
+}
+
 .dashboard-input-row.goal-custom-row {
   max-width: 340px;
 }

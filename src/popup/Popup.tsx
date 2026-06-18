@@ -44,6 +44,7 @@ import { getCurrentWeekTimeStats } from '../timeStats'
 import type { WeeklyTimeStats } from '../timeStats'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+const idleTimeoutPresetMinutes = [1, 2, 5, 10] as const
 const dashboardPath = 'dashboard.html'
 
 const openDashboard = () => {
@@ -68,6 +69,12 @@ const openDashboard = () => {
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
 
+const isValidIdleTimeoutMinutes = (value: number): boolean =>
+  Number.isInteger(value) && value > 0 && value <= 60
+
+const formatTimeoutMinutes = (minutes: number): string =>
+  `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+
 function Popup() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [todayActivity, setTodayActivity] = useState<DailyActivity | null>(null)
@@ -89,6 +96,7 @@ function Popup() {
   const [progressPercentage, setProgressPercentage] = useState('0')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
   const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
+  const [idleTimeoutStatusText, setIdleTimeoutStatusText] = useState<string | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
 
   const refreshProjection = () => {
@@ -211,8 +219,24 @@ function Popup() {
     saveGoalMinutes(Number(dailyGoalMinutes))
   }
 
-  const saveIdleTimeoutValue = () => {
-    void saveIdleTimeout(Number(idleTimeoutMinutes) * 60).then(setSettings)
+  const saveIdleTimeoutMinutes = (minutes: number) => {
+    if (!isValidIdleTimeoutMinutes(minutes)) {
+      setIdleTimeoutStatusText('Choose a timeout between 1 and 60 minutes.')
+      setIdleTimeoutMinutes(
+        settings ? String(secondsToMinutes(settings.idleTimeoutSeconds)) : '2',
+      )
+      return
+    }
+
+    setIdleTimeoutStatusText('Saving idle timeout...')
+    setIdleTimeoutMinutes(String(minutes))
+    void saveIdleTimeout(minutes * 60).then((nextSettings) => {
+      setSettings(nextSettings)
+      setIdleTimeoutMinutes(String(secondsToMinutes(nextSettings.idleTimeoutSeconds)))
+      setIdleTimeoutStatusText(
+        `Saved ${formatTimeoutMinutes(minutes)} idle timeout.`,
+      )
+    })
   }
 
   const saveTimezoneValue = () => {
@@ -280,6 +304,10 @@ function Popup() {
   const currentDailyGoalText =
     settings && settings.dailyGoalSeconds > 0
       ? formatActiveTime(settings.dailyGoalSeconds)
+      : 'Not set'
+  const currentIdleTimeoutText =
+    settings && settings.idleTimeoutSeconds > 0
+      ? formatActiveTime(settings.idleTimeoutSeconds)
       : 'Not set'
   const todayProgressState =
     goalProgress.goalSeconds === 0
@@ -484,16 +512,33 @@ function Popup() {
 
           <label>
             <span>Idle timeout</span>
-            <div className="input-row">
-              <input
-                min="0"
-                type="number"
-                value={idleTimeoutMinutes}
-                onBlur={saveIdleTimeoutValue}
-                onChange={(event) => setIdleTimeoutMinutes(event.target.value)}
-              />
-              <span>min</span>
+            <span className="settings-current-value">
+              Current timeout <strong>{currentIdleTimeoutText}</strong>
+            </span>
+            <p className="settings-help-text">
+              Pauses tracking after Scrimba sits without mouse, keyboard, scroll, or touch activity.
+            </p>
+            <div className="goal-control" role="group" aria-label="Idle timeout presets">
+              <div className="segmented-control idle-timeout-presets">
+                {idleTimeoutPresetMinutes.map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    className={
+                      Number(idleTimeoutMinutes) === minutes ? 'is-selected' : undefined
+                    }
+                    onClick={() => saveIdleTimeoutMinutes(minutes)}
+                  >
+                    {minutes}m
+                  </button>
+                ))}
+              </div>
             </div>
+            {idleTimeoutStatusText ? (
+              <span className="save-status" role="status" aria-live="polite">
+                {idleTimeoutStatusText}
+              </span>
+            ) : null}
           </label>
 
           <label>
