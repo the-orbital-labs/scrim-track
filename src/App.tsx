@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { getActivityForDate } from './activity'
+import { getActivityForDate, getLocalDateKey } from './activity'
 import { formatActiveTime, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getDashboardHeatmapGrid } from './heatmap'
 import type { HeatmapGrid, HeatmapWeek } from './heatmap'
@@ -46,14 +46,28 @@ import { getCurrentWeekSummary } from './weeklySummary'
 import type { WeeklySummary } from './weeklySummary'
 
 const dailyGoalPresetMinutes = [15, 30, 45, 60] as const
+const heatmapPeriodOptions = ['year', 'month', 'week'] as const
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' })
+const dateRangeFormatter = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
 const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'long',
   weekday: 'long',
   year: 'numeric',
 })
+
+type HeatmapPeriod = (typeof heatmapPeriodOptions)[number]
+
+const heatmapPeriodLabels: Record<HeatmapPeriod, string> = {
+  year: 'Last 365 days',
+  month: 'This month',
+  week: 'This week',
+}
 
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
@@ -72,6 +86,15 @@ const getMonthLabel = (week: HeatmapWeek): string => {
   })
 
   return firstMonthDay ? monthFormatter.format(parseLocalDateKey(firstMonthDay.date)) : ''
+}
+
+const getWeekStart = (date: Date): Date => {
+  const weekStart = new Date(date)
+
+  weekStart.setHours(0, 0, 0, 0)
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+
+  return weekStart
 }
 
 type SummaryStatCardProps = {
@@ -113,6 +136,7 @@ function App() {
   const [remainingHours, setRemainingHours] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
+  const [heatmapPeriod, setHeatmapPeriod] = useState<HeatmapPeriod>('year')
   const [pathName, setPathName] = useState('')
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
   const [progressPercentage, setProgressPercentage] = useState('0')
@@ -337,10 +361,35 @@ function App() {
         ? 'Declined'
         : 'No change'
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
-  const activeHeatmapDays =
+  const heatmapDays =
     heatmapGrid?.weeks
       .flatMap((week) => week.days)
-      .filter((day) => !day.isOutsideRange && day.activeSeconds > 0).length ?? 0
+      .filter((day) => !day.isOutsideRange && !day.isFuture) ?? []
+  const today = new Date()
+  const selectedHeatmapStartDate =
+    heatmapPeriod === 'week'
+      ? getWeekStart(today)
+      : heatmapPeriod === 'month'
+        ? new Date(today.getFullYear(), today.getMonth(), 1)
+        : parseLocalDateKey(heatmapGrid?.startDate ?? getLocalDateKey(today))
+  const selectedHeatmapStartKey = getLocalDateKey(selectedHeatmapStartDate)
+  const selectedHeatmapEndKey = heatmapGrid?.endDate ?? getLocalDateKey(today)
+  const selectedHeatmapDays = heatmapDays.filter(
+    (day) => day.date >= selectedHeatmapStartKey && day.date <= selectedHeatmapEndKey,
+  )
+  const selectedHeatmapActiveDays = selectedHeatmapDays.filter(
+    (day) => day.activeSeconds > 0,
+  ).length
+  const selectedHeatmapActiveSeconds = selectedHeatmapDays.reduce(
+    (total, day) => total + day.activeSeconds,
+    0,
+  )
+  const selectedHeatmapGoalDays = selectedHeatmapDays.filter(
+    (day) => day.goalCompleted,
+  ).length
+  const heatmapDateRangeText = heatmapGrid
+    ? `${dateRangeFormatter.format(parseLocalDateKey(heatmapGrid.startDate))} to ${dateRangeFormatter.format(parseLocalDateKey(heatmapGrid.endDate))}`
+    : 'Loading activity range'
   const trackingStatusText =
     settings?.trackingEnabled === false ? 'Tracking paused' : 'Tracking on'
   const trackingStatusClass =
@@ -412,6 +461,135 @@ function App() {
           label="All-time"
           value={formatActiveTime(allTimeActiveSeconds)}
         />
+      </section>
+
+      <section
+        className="panel heatmap-hero-panel"
+        aria-labelledby="dashboard-heatmap-title"
+      >
+        <div className="heatmap-hero-header">
+          <div>
+            <p className="eyebrow">Activity calendar</p>
+            <h2 id="dashboard-heatmap-title">Year in Scrimba</h2>
+            <p className="heatmap-range-label">{heatmapDateRangeText}</p>
+          </div>
+
+          <div
+            className="heatmap-period-control"
+            role="group"
+            aria-label="Heatmap summary period"
+          >
+            {heatmapPeriodOptions.map((period) => (
+              <button
+                key={period}
+                type="button"
+                className={heatmapPeriod === period ? 'is-selected' : undefined}
+                onClick={() => setHeatmapPeriod(period)}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="heatmap-summary-grid" aria-label="Selected period totals">
+          <span>
+            Period
+            <strong>{heatmapPeriodLabels[heatmapPeriod]}</strong>
+          </span>
+          <span>
+            Active days
+            <strong>{selectedHeatmapActiveDays}</strong>
+          </span>
+          <span>
+            Total time
+            <strong>{formatActiveTime(selectedHeatmapActiveSeconds)}</strong>
+          </span>
+          <span>
+            Goals hit
+            <strong>{selectedHeatmapGoalDays}</strong>
+          </span>
+        </div>
+
+        <div className="dashboard-heatmap" aria-label="365-day activity heatmap">
+          <div className="dashboard-months" aria-hidden="true">
+            {heatmapGrid?.weeks.map((week) => (
+              <span key={week.startDate}>{getMonthLabel(week)}</span>
+            ))}
+          </div>
+
+          <div className="dashboard-heatmap-body">
+            <div className="dashboard-weekdays" aria-hidden="true">
+              {weekdayLabels.map((label, index) => (
+                <span key={label}>{index % 2 === 1 ? label : ''}</span>
+              ))}
+            </div>
+
+            <div
+              className="dashboard-heatmap-grid"
+              role="img"
+              aria-label="Daily Scrimba activity for the last 365 days"
+            >
+              {heatmapGrid?.weeks.map((week) => (
+                <div className="dashboard-heatmap-week" key={week.startDate}>
+                  {week.days.map((day) => {
+                    const isSelectedPeriodDay =
+                      !day.isOutsideRange &&
+                      day.date >= selectedHeatmapStartKey &&
+                      day.date <= selectedHeatmapEndKey
+
+                    return (
+                      <span
+                        key={day.date}
+                        tabIndex={0}
+                        className={[
+                          'dashboard-heatmap-cell',
+                          'heatmap-tooltip-trigger',
+                          `heatmap-level-${day.intensity}`,
+                          day.isToday ? 'is-today' : '',
+                          day.isFuture || day.isOutsideRange ? 'is-muted' : '',
+                          isSelectedPeriodDay ? 'is-selected-period' : '',
+                          !isSelectedPeriodDay && heatmapPeriod !== 'year'
+                            ? 'is-outside-selected-period'
+                            : '',
+                        ].filter(Boolean).join(' ')}
+                        title={getHeatmapTooltipText(day)}
+                        aria-label={getHeatmapTooltipText(day)}
+                      >
+                        <span className="heatmap-tooltip" role="tooltip">
+                          {getHeatmapTooltipLines(day).map((line) => (
+                            <span key={line}>{line}</span>
+                          ))}
+                        </span>
+                      </span>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="heatmap-legend" aria-label="Heatmap intensity legend">
+            <span>Less</span>
+            {[0, 1, 2, 3, 4, 5].map((level) => (
+              <span
+                key={level}
+                className={`dashboard-heatmap-cell heatmap-level-${level}`}
+                title={
+                  [
+                    '0 min',
+                    '1-14 min',
+                    '15-29 min',
+                    '30-59 min',
+                    '60-119 min',
+                    '120+ min',
+                  ][level]
+                }
+              />
+            ))}
+            <span>More</span>
+          </div>
+        </div>
       </section>
 
       <section className="panel weekly-summary-panel" aria-label="Weekly summary">
@@ -609,81 +787,6 @@ function App() {
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-heading-row">
-          <h2>Activity Calendar</h2>
-          <span>{activeHeatmapDays} active days</span>
-        </div>
-
-        <div className="dashboard-heatmap" aria-label="365-day activity heatmap">
-          <div className="dashboard-months" aria-hidden="true">
-            {heatmapGrid?.weeks.map((week) => (
-              <span key={week.startDate}>{getMonthLabel(week)}</span>
-            ))}
-          </div>
-
-          <div className="dashboard-heatmap-body">
-            <div className="dashboard-weekdays" aria-hidden="true">
-              {weekdayLabels.map((label, index) => (
-                <span key={label}>{index % 2 === 1 ? label : ''}</span>
-              ))}
-            </div>
-
-            <div
-              className="dashboard-heatmap-grid"
-              role="img"
-              aria-label="Daily Scrimba activity for the last 365 days"
-            >
-              {heatmapGrid?.weeks.map((week) => (
-                <div className="dashboard-heatmap-week" key={week.startDate}>
-                  {week.days.map((day) => (
-                    <span
-                      key={day.date}
-                      tabIndex={0}
-                      className={[
-                        'dashboard-heatmap-cell',
-                        'heatmap-tooltip-trigger',
-                        `heatmap-level-${day.intensity}`,
-                        day.isToday ? 'is-today' : '',
-                        day.isFuture || day.isOutsideRange ? 'is-muted' : '',
-                      ].filter(Boolean).join(' ')}
-                      title={getHeatmapTooltipText(day)}
-                      aria-label={getHeatmapTooltipText(day)}
-                    >
-                      <span className="heatmap-tooltip" role="tooltip">
-                        {getHeatmapTooltipLines(day).map((line) => (
-                          <span key={line}>{line}</span>
-                        ))}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="heatmap-legend" aria-label="Heatmap intensity legend">
-            <span>Less</span>
-            {[0, 1, 2, 3, 4, 5].map((level) => (
-              <span
-                key={level}
-                className={`dashboard-heatmap-cell heatmap-level-${level}`}
-                title={
-                  [
-                    '0 min',
-                    '1-14 min',
-                    '15-29 min',
-                    '30-59 min',
-                    '60-119 min',
-                    '120+ min',
-                  ][level]
-                }
-              />
-            ))}
-            <span>More</span>
-          </div>
-        </div>
-      </section>
     </main>
   )
 }
