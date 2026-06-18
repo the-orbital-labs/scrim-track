@@ -94,14 +94,31 @@ const parseLocalDateKey = (dateKey: string): Date => {
   return new Date(year, month - 1, day)
 }
 
-const getMonthLabel = (week: HeatmapWeek): string => {
-  const firstMonthDay = week.days.find((day) => {
-    const date = parseLocalDateKey(day.date)
+const getMonthKey = (dateKey: string): string => {
+  const date = parseLocalDateKey(dateKey)
 
-    return !day.isOutsideRange && date.getDate() <= 7
-  })
+  return `${date.getFullYear()}-${date.getMonth()}`
+}
 
-  return firstMonthDay ? monthFormatter.format(parseLocalDateKey(firstMonthDay.date)) : ''
+const getMonthLabel = (
+  week: HeatmapWeek,
+  weekIndex: number,
+  weeks: HeatmapWeek[],
+): string => {
+  const previousMonthKeys = new Set(
+    weeks
+      .slice(0, weekIndex)
+      .flatMap((previousWeek) => previousWeek.days)
+      .filter((day) => !day.isOutsideRange)
+      .map((day) => getMonthKey(day.date)),
+  )
+  const firstNewMonthDay = week.days.find(
+    (day) => !day.isOutsideRange && !previousMonthKeys.has(getMonthKey(day.date)),
+  )
+
+  return firstNewMonthDay
+    ? monthFormatter.format(parseLocalDateKey(firstNewMonthDay.date))
+    : ''
 }
 
 const getWeekStart = (date: Date): Date => {
@@ -552,6 +569,14 @@ function App() {
   const heatmapDateRangeText = heatmapGrid
     ? `${dateRangeFormatter.format(parseLocalDateKey(heatmapGrid.startDate))} to ${dateRangeFormatter.format(parseLocalDateKey(heatmapGrid.endDate))}`
     : 'Loading activity range'
+  const heatmapMonthMarkers =
+    heatmapGrid?.weeks
+      .map((week, index, weeks) => ({
+        column: index + 1,
+        label: getMonthLabel(week, index, weeks),
+        startDate: week.startDate,
+      }))
+      .filter((marker) => marker.label) ?? []
   const trackingStatusText =
     settings?.trackingEnabled === false ? 'Tracking paused' : 'Tracking on'
   const trackingStatusClass =
@@ -591,39 +616,6 @@ function App() {
           </a>
         </div>
       </header>
-
-      <section className="summary-grid" aria-label="Key learning stats">
-        <SummaryStatCard
-          detail={todaySummaryDetail}
-          isEmpty={todayActiveSeconds === 0}
-          label="Today"
-          value={formatActiveTime(todayActiveSeconds)}
-        />
-        <SummaryStatCard
-          detail={weeklySummaryDetail}
-          isEmpty={weeklyActiveSeconds === 0}
-          label="This week"
-          value={formatActiveTime(weeklyActiveSeconds)}
-        />
-        <SummaryStatCard
-          detail={monthlySummaryDetail}
-          isEmpty={monthlyActiveSeconds === 0}
-          label="This month"
-          value={formatActiveTime(monthlyActiveSeconds)}
-        />
-        <SummaryStatCard
-          detail={streakSummaryDetail}
-          isEmpty={currentStreak === 0}
-          label="Current streak"
-          value={currentStreakLabel}
-        />
-        <SummaryStatCard
-          detail={allTimeSummaryDetail}
-          isEmpty={allTimeActiveSeconds === 0}
-          label="All-time"
-          value={formatActiveTime(allTimeActiveSeconds)}
-        />
-      </section>
 
       <section
         className="panel heatmap-hero-panel"
@@ -675,8 +667,13 @@ function App() {
 
         <div className="dashboard-heatmap" aria-label="365-day activity heatmap">
           <div className="dashboard-months" aria-hidden="true">
-            {heatmapGrid?.weeks.map((week) => (
-              <span key={week.startDate}>{getMonthLabel(week)}</span>
+            {heatmapMonthMarkers.map((marker) => (
+              <span
+                key={marker.startDate}
+                style={{ gridColumn: `${marker.column} / span 4` }}
+              >
+                {marker.label}
+              </span>
             ))}
           </div>
 
@@ -752,6 +749,39 @@ function App() {
             <span>More</span>
           </div>
         </div>
+      </section>
+
+      <section className="summary-grid" aria-label="Key learning stats">
+        <SummaryStatCard
+          detail={todaySummaryDetail}
+          isEmpty={todayActiveSeconds === 0}
+          label="Today"
+          value={formatActiveTime(todayActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={weeklySummaryDetail}
+          isEmpty={weeklyActiveSeconds === 0}
+          label="This week"
+          value={formatActiveTime(weeklyActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={monthlySummaryDetail}
+          isEmpty={monthlyActiveSeconds === 0}
+          label="This month"
+          value={formatActiveTime(monthlyActiveSeconds)}
+        />
+        <SummaryStatCard
+          detail={streakSummaryDetail}
+          isEmpty={currentStreak === 0}
+          label="Current streak"
+          value={currentStreakLabel}
+        />
+        <SummaryStatCard
+          detail={allTimeSummaryDetail}
+          isEmpty={allTimeActiveSeconds === 0}
+          label="All-time"
+          value={formatActiveTime(allTimeActiveSeconds)}
+        />
       </section>
 
       <section className="panel pace-panel" aria-labelledby="pace-title">
