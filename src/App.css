@@ -848,6 +848,58 @@
   font-weight: 600;
 }
 
+.goal-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.goal-settings-header > span,
+.settings-current-value,
+.save-status {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.goal-settings-header > span {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.settings-current-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goal-settings-header strong,
+.settings-current-value strong {
+  color: var(--text-h);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.goal-custom-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.goal-custom-row .secondary-button {
+  min-height: 36px;
+  padding-inline: 10px;
+}
+
+.dashboard-input-row.goal-custom-row {
+  max-width: 340px;
+}
+
+.save-status {
+  color: var(--success);
+}
+
 .streak-state {
   display: grid;
   gap: 4px;
@@ -1285,6 +1337,14 @@
 
   .heatmap-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .goal-settings-header {
+    display: grid;
+  }
+
+  .goal-settings-header > span {
+    text-align: left;
   }
 
   .weekly-summary-stats {

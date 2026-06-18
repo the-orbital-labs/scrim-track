@@ -140,6 +140,7 @@ function App() {
   const [remainingHours, setRemainingHours] = useState(0)
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState('30')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
+  const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
   const [heatmapPeriod, setHeatmapPeriod] = useState<HeatmapPeriod>('year')
   const [pathName, setPathName] = useState('')
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
@@ -245,6 +246,7 @@ function App() {
   const saveGoalMinutes = (minutes: number) => {
     if (!isValidDailyGoalMinutes(minutes)) {
       setDailyGoalError('Enter 1-1440 minutes.')
+      setDailyGoalStatusText(null)
       setDailyGoalMinutes(
         settings ? String(secondsToMinutes(settings.dailyGoalSeconds)) : '30',
       )
@@ -252,12 +254,18 @@ function App() {
     }
 
     setDailyGoalError(null)
+    setDailyGoalStatusText('Saving daily goal...')
     setDailyGoalMinutes(String(minutes))
     void saveDailyGoal(minutes * 60).then((nextSettings) => {
       setSettings(nextSettings)
+      setDailyGoalMinutes(String(secondsToMinutes(nextSettings.dailyGoalSeconds)))
+      setDailyGoalStatusText(
+        `Saved ${formatActiveTime(nextSettings.dailyGoalSeconds)} daily goal.`,
+      )
       refreshTodayActivity()
     }).catch(() => {
       setDailyGoalError('Enter 1-1440 minutes.')
+      setDailyGoalStatusText(null)
     })
   }
 
@@ -339,6 +347,10 @@ function App() {
   const progressText =
     goalProgress.goalSeconds > 0
       ? `${formatActiveTime(goalProgress.activeSeconds)} / ${formatActiveTime(goalProgress.goalSeconds)}`
+      : 'Not set'
+  const currentDailyGoalText =
+    settings && settings.dailyGoalSeconds > 0
+      ? formatActiveTime(settings.dailyGoalSeconds)
       : 'Not set'
   const weeklyAverageText = `${formatActiveTime(
     weeklyTimeStats?.averageSecondsPerDay ?? 0,
@@ -808,7 +820,16 @@ function App() {
       </section>
 
       <section className="panel" id="dashboard-settings">
-        <h2>Daily Goal</h2>
+        <div className="goal-settings-header">
+          <div>
+            <p className="eyebrow">Goal settings</p>
+            <h2>Daily Goal</h2>
+          </div>
+          <span>
+            Current goal
+            <strong>{currentDailyGoalText}</strong>
+          </span>
+        </div>
         <div className={`streak-state streak-state-${streakDisplay.tone}`}>
           <strong>{streakDisplay.currentLabel}</strong>
           <span>{streakDisplay.longestLabel}</span>
@@ -840,24 +861,36 @@ function App() {
                   }
                   onClick={() => saveGoalMinutes(minutes)}
                 >
-                  {minutes}
+                  {minutes}m
                 </button>
               ))}
             </div>
-            <div className="input-row dashboard-input-row">
+            <div className="input-row dashboard-input-row goal-custom-row">
               <input
                 max="1440"
                 min="1"
                 step="1"
                 type="number"
                 value={dailyGoalMinutes}
-                onBlur={saveCustomGoal}
                 onChange={(event) => setDailyGoalMinutes(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    saveCustomGoal()
+                  }
+                }}
               />
               <span>min</span>
+              <button type="button" className="secondary-button" onClick={saveCustomGoal}>
+                Save
+              </button>
             </div>
           </div>
           {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
+          {dailyGoalStatusText ? (
+            <span className="save-status" role="status" aria-live="polite">
+              {dailyGoalStatusText}
+            </span>
+          ) : null}
         </div>
       </section>
 

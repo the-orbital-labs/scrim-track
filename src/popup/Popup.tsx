@@ -88,6 +88,7 @@ function Popup() {
   const [totalEstimatedHours, setTotalEstimatedHours] = useState('1')
   const [progressPercentage, setProgressPercentage] = useState('0')
   const [dailyGoalError, setDailyGoalError] = useState<string | null>(null)
+  const [dailyGoalStatusText, setDailyGoalStatusText] = useState<string | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
 
   const refreshProjection = () => {
@@ -183,6 +184,7 @@ function Popup() {
   const saveGoalMinutes = (minutes: number) => {
     if (!isValidDailyGoalMinutes(minutes)) {
       setDailyGoalError('Enter 1-1440 minutes.')
+      setDailyGoalStatusText(null)
       setDailyGoalMinutes(
         settings ? String(secondsToMinutes(settings.dailyGoalSeconds)) : '30',
       )
@@ -190,12 +192,18 @@ function Popup() {
     }
 
     setDailyGoalError(null)
+    setDailyGoalStatusText('Saving daily goal...')
     setDailyGoalMinutes(String(minutes))
     void saveDailyGoal(minutes * 60).then((nextSettings) => {
       setSettings(nextSettings)
+      setDailyGoalMinutes(String(secondsToMinutes(nextSettings.dailyGoalSeconds)))
+      setDailyGoalStatusText(
+        `Saved ${formatActiveTime(nextSettings.dailyGoalSeconds)} daily goal.`,
+      )
       refreshTodayActivity()
     }).catch(() => {
       setDailyGoalError('Enter 1-1440 minutes.')
+      setDailyGoalStatusText(null)
     })
   }
 
@@ -269,6 +277,10 @@ function Popup() {
   const todayActiveTime = formatActiveTime(todayActivity?.activeSeconds ?? 0)
   const todayGoalTime =
     goalProgress.goalSeconds > 0 ? formatActiveTime(goalProgress.goalSeconds) : 'Not set'
+  const currentDailyGoalText =
+    settings && settings.dailyGoalSeconds > 0
+      ? formatActiveTime(settings.dailyGoalSeconds)
+      : 'Not set'
   const todayProgressState =
     goalProgress.goalSeconds === 0
       ? 'Set a daily goal to track progress'
@@ -424,6 +436,9 @@ function Popup() {
 
           <label>
             <span>Daily goal</span>
+            <span className="settings-current-value">
+              Current goal <strong>{currentDailyGoalText}</strong>
+            </span>
             <div className="goal-control" role="group" aria-label="Daily goal presets">
               <div className="segmented-control">
                 {dailyGoalPresetMinutes.map((minutes) => (
@@ -435,24 +450,36 @@ function Popup() {
                     }
                     onClick={() => saveGoalMinutes(minutes)}
                   >
-                    {minutes}
+                    {minutes}m
                   </button>
                 ))}
               </div>
-              <div className="input-row">
+              <div className="input-row goal-custom-row">
                 <input
                   max="1440"
                   min="1"
                   step="1"
                   type="number"
                   value={dailyGoalMinutes}
-                  onBlur={saveCustomGoal}
                   onChange={(event) => setDailyGoalMinutes(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      saveCustomGoal()
+                    }
+                  }}
                 />
                 <span>min</span>
+                <button type="button" className="secondary-button" onClick={saveCustomGoal}>
+                  Save
+                </button>
               </div>
             </div>
             {dailyGoalError ? <span className="error-text">{dailyGoalError}</span> : null}
+            {dailyGoalStatusText ? (
+              <span className="save-status" role="status" aria-live="polite">
+                {dailyGoalStatusText}
+              </span>
+            ) : null}
           </label>
 
           <label>
