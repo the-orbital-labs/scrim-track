@@ -71,7 +71,8 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
   font-weight: 750;
   color: var(--text-h);
@@ -86,6 +87,12 @@ h1 {
 h2 {
   margin: 0;
   font-size: 20px;
+  line-height: 1.2;
+}
+
+h3 {
+  margin: 0;
+  font-size: 18px;
   line-height: 1.2;
 }
 

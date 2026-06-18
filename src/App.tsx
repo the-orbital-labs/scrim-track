@@ -69,6 +69,9 @@ const heatmapPeriodLabels: Record<HeatmapPeriod, string> = {
   week: 'This week',
 }
 
+const pluralizeActiveDays = (count: number): string =>
+  `${count} active ${count === 1 ? 'day' : 'days'}`
+
 const isValidDailyGoalMinutes = (value: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= 24 * 60
 
@@ -343,9 +346,9 @@ function App() {
   const monthlyActiveDaysText = `${monthlyTimeStats?.activeDays ?? 0} active days`
   const allTimeActiveDaysText = `${allTimeStats?.activeDays ?? 0} active days`
   const weeklySummaryLines =
-    weeklySummary?.summaryText ?? ['Weekly summary is loading.']
+    weeklySummary?.summaryText ?? ['Your weekly summary is loading.']
   const monthlySummaryLines =
-    monthlySummary?.summaryText ?? ['Monthly summary is loading.']
+    monthlySummary?.summaryText ?? ['Your monthly summary is loading.']
   const pathStatusText = pathProgress?.pathName
     ? `${pathProgress.pathName} - ${pathProgress.progressPercentage}% complete`
     : 'No path set'
@@ -368,6 +371,12 @@ function App() {
       : weeklySummary?.comparisonTrend === 'decrease'
         ? 'Declined'
         : 'No change'
+  const weeklyBestDayText = weeklySummary?.bestDay
+    ? `${weeklySummary.bestDay.label} - ${formatActiveTime(weeklySummary.bestDay.activeSeconds)}`
+    : 'No best day yet'
+  const monthlyBestDayText = monthlySummary?.bestDay
+    ? `${monthlySummary.bestDay.label} - ${formatActiveTime(monthlySummary.bestDay.activeSeconds)}`
+    : 'No best day yet'
   const streakDisplay = getStreakDisplayState(streakStatus, goalProgress)
   const heatmapDays =
     heatmapGrid?.weeks
@@ -642,59 +651,74 @@ function App() {
         </div>
       </section>
 
-      <section className="panel weekly-summary-panel" aria-label="Weekly summary">
+      <section
+        className="panel progress-summary-section"
+        aria-labelledby="progress-summary-title"
+      >
         <div className="panel-heading-row">
-          <h2>Weekly Summary</h2>
-          <span>{weeklySummary?.activeDays ?? 0} active days</span>
+          <div>
+            <p className="eyebrow">Progress summary</p>
+            <h2 id="progress-summary-title">Weekly and Monthly Recap</h2>
+          </div>
+          <span>Narrative recap</span>
         </div>
-        <ul className="weekly-summary-list">
-          {weeklySummaryLines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <div className="weekly-summary-stats">
-          <span>
-            Daily average
-            <strong>{formatActiveTime(weeklySummary?.dailyAverageSeconds ?? 0)}</strong>
-          </span>
-          <span>
-            Last week
-            <strong>{formatActiveTime(weeklySummary?.previousWeekActiveSeconds ?? 0)}</strong>
-          </span>
-          <span
-            className={`weekly-comparison weekly-comparison-${weeklySummary?.comparisonTrend ?? 'no-change'}`}
-          >
-            Change
-            <strong>{formatActiveTime(weeklyComparisonDifference)}</strong>
-            <small>{weeklyComparisonLabel}</small>
-          </span>
-        </div>
-      </section>
 
-      <section className="panel weekly-summary-panel" aria-label="Monthly summary">
-        <div className="panel-heading-row">
-          <h2>Monthly Summary</h2>
-          <span>{monthlySummary?.activeDays ?? 0} active days</span>
-        </div>
-        <ul className="weekly-summary-list">
-          {monthlySummaryLines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <div className="weekly-summary-stats">
-          <span>
-            Daily average
-            <strong>{formatActiveTime(monthlySummary?.dailyAverageSeconds ?? 0)}</strong>
-          </span>
-          <span>
-            Best week
-            <strong>{formatActiveTime(monthlySummary?.bestWeek?.activeSeconds ?? 0)}</strong>
-            <small>{monthlySummary?.bestWeek?.label ?? 'No activity yet'}</small>
-          </span>
-          <span>
-            Longest streak
-            <strong>{monthlySummary?.longestStreak ?? 0}d</strong>
-          </span>
+        <div className="progress-summary-grid">
+          <article className="summary-period-panel" aria-label="Weekly summary">
+            <div className="summary-period-header">
+              <h3>This Week</h3>
+              <span>{pluralizeActiveDays(weeklySummary?.activeDays ?? 0)}</span>
+            </div>
+            <ul className="weekly-summary-list">
+              {weeklySummaryLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <div className="weekly-summary-stats">
+              <span>
+                Best day
+                <strong>{weeklyBestDayText}</strong>
+              </span>
+              <span>
+                Previous week
+                <strong>{formatActiveTime(weeklySummary?.previousWeekActiveSeconds ?? 0)}</strong>
+              </span>
+              <span
+                className={`weekly-comparison weekly-comparison-${weeklySummary?.comparisonTrend ?? 'no-change'}`}
+              >
+                Change
+                <strong>{formatActiveTime(weeklyComparisonDifference)}</strong>
+                <small>{weeklyComparisonLabel}</small>
+              </span>
+            </div>
+          </article>
+
+          <article className="summary-period-panel" aria-label="Monthly summary">
+            <div className="summary-period-header">
+              <h3>This Month</h3>
+              <span>{pluralizeActiveDays(monthlySummary?.activeDays ?? 0)}</span>
+            </div>
+            <ul className="weekly-summary-list">
+              {monthlySummaryLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <div className="weekly-summary-stats">
+              <span>
+                Best day
+                <strong>{monthlyBestDayText}</strong>
+              </span>
+              <span>
+                Best week
+                <strong>{formatActiveTime(monthlySummary?.bestWeek?.activeSeconds ?? 0)}</strong>
+                <small>{monthlySummary?.bestWeek?.label ?? 'No activity yet'}</small>
+              </span>
+              <span>
+                Daily average
+                <strong>{formatActiveTime(monthlySummary?.dailyAverageSeconds ?? 0)}</strong>
+              </span>
+            </div>
+          </article>
         </div>
       </section>
 

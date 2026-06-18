@@ -161,7 +161,7 @@ export const getCurrentMonthSummary = async (
         ]
       : [
           'No Scrimba study time recorded this month yet.',
-          'Best week and best day will appear after you study.',
+          'Best week and best day will appear after your next session.',
           `Your longest goal streak this month is ${pluralize(longestStreak, 'day')}.`,
         ]
 

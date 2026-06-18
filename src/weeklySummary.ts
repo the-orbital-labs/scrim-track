@@ -63,11 +63,11 @@ const getComparisonText = (
   const difference = activeSeconds - previousWeekActiveSeconds
 
   if (activeSeconds === 0 && previousWeekActiveSeconds === 0) {
-    return 'No activity this week or last week yet.'
+    return 'No comparison yet - your next study session will start the trend.'
   }
 
   if (previousWeekActiveSeconds === 0) {
-    return `Last week had no recorded study time. You studied ${formatActiveTime(activeSeconds)} this week.`
+    return `Last week was quiet. You studied ${formatActiveTime(activeSeconds)} this week.`
   }
 
   if (difference > 0) {
@@ -136,6 +136,7 @@ export const getCurrentWeekSummary = async (
         ]
       : [
           'No Scrimba study time recorded this week yet.',
+          'Start a Scrimba session and this recap will fill in automatically.',
           comparisonText,
         ]
 

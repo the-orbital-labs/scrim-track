@@ -246,6 +246,60 @@
   gap: 16px;
 }
 
+.progress-summary-section {
+  display: grid;
+  gap: 16px;
+}
+
+.progress-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-period-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.summary-period-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-period-header span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.summary-period-panel .weekly-summary-list li {
+  font-size: 14px;
+}
+
+.summary-period-panel .weekly-summary-stats {
+  grid-template-columns: 1fr;
+}
+
+.summary-period-panel .weekly-summary-stats span {
+  background: var(--surface);
+}
+
+.summary-period-panel .weekly-summary-stats strong {
+  font-size: 18px;
+  line-height: 1.2;
+  white-space: normal;
+}
+
 .weekly-summary-list {
   display: grid;
   gap: 8px;
@@ -1235,6 +1289,18 @@
 
   .weekly-summary-stats {
     grid-template-columns: 1fr;
+  }
+
+  .progress-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-period-header {
+    display: grid;
+  }
+
+  .summary-period-header span {
+    white-space: normal;
   }
 
   .pace-header {
