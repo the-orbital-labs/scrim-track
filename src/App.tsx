@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import { getActivityForDate, getLocalDateKey } from './activity'
+import { downloadLocalDataExport } from './dataExport'
 import { formatActiveTime, getGoalProgress, secondsToMinutes } from './goalProgress'
 import { getDashboardHeatmapGrid } from './heatmap'
 import type { HeatmapGrid, HeatmapWeek } from './heatmap'
@@ -162,6 +163,7 @@ function App() {
   const [progressPercentage, setProgressPercentage] = useState('0')
   const [pathError, setPathError] = useState<string | null>(null)
   const [pathSaveStatusText, setPathSaveStatusText] = useState<string | null>(null)
+  const [exportStatusText, setExportStatusText] = useState<string | null>(null)
   const [resetStatusText, setResetStatusText] = useState<string | null>(null)
 
   const refreshTodayActivity = () => {
@@ -454,6 +456,15 @@ function App() {
       )
       refreshTodayActivity()
       refreshProjection()
+    })
+  }
+
+  const exportData = () => {
+    setExportStatusText('Preparing JSON export...')
+    void downloadLocalDataExport().then((fileName) => {
+      setExportStatusText(`Downloaded ${fileName}.`)
+    }).catch(() => {
+      setExportStatusText('Export failed. Try again.')
     })
   }
 
@@ -1111,11 +1122,21 @@ function App() {
       <section className="panel data-reset-panel" aria-label="Data reset">
         <div>
           <p className="eyebrow">Local data</p>
-          <h2>Reset Data</h2>
+          <h2>Export and Reset Data</h2>
         </div>
         <p className="settings-help-text">
-          Reset deletes tracked Scrimba activity, saved sessions, and streak history from this device.
+          Export downloads a JSON file with daily activity, sessions, settings, streaks, and path data. Reset deletes local activity from this device.
         </p>
+        <div className="export-action-row">
+          <button type="button" className="secondary-button" onClick={exportData}>
+            Download JSON export
+          </button>
+          {exportStatusText ? (
+            <span className="save-status" role="status" aria-live="polite">
+              {exportStatusText}
+            </span>
+          ) : null}
+        </div>
         <div className="reset-action-grid">
           <button
             type="button"

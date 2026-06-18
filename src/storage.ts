@@ -72,6 +72,13 @@ export type ResetLocalDataOptions = {
   resetSettings: boolean
 }
 
+export type LocalDataExport = {
+  app: 'scrimba-learning-tracker'
+  data: StorageSchema
+  exportedAt: string
+  schemaVersion: 1
+}
+
 const defaultStorageValues: StorageSchema = {
   extensionStatus: {
     installedAt: null,
@@ -226,4 +233,36 @@ export const resetLocalData = async ({
   ])
 
   return nextStorage
+}
+
+export const getLocalDataExport = async (): Promise<LocalDataExport> => {
+  const [
+    extensionStatus,
+    currentScrimbaPage,
+    dailyActivities,
+    streakStatus,
+    userSettings,
+    pathProgress,
+  ] = await Promise.all([
+    getStorageValue('extensionStatus'),
+    getStorageValue('currentScrimbaPage'),
+    getStorageValue('dailyActivities'),
+    getStorageValue('streakStatus'),
+    getStorageValue('userSettings'),
+    getStorageValue('pathProgress'),
+  ])
+
+  return {
+    app: 'scrimba-learning-tracker',
+    data: {
+      extensionStatus,
+      currentScrimbaPage,
+      dailyActivities,
+      streakStatus,
+      userSettings,
+      pathProgress,
+    },
+    exportedAt: new Date().toISOString(),
+    schemaVersion: 1,
+  }
 }
