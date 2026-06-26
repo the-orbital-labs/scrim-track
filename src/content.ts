@@ -1,9 +1,160 @@
-import { getActivityForDate } from './activity'
-import { formatActiveTime, getGoalProgress } from './goalProgress'
-import { getUserSettings, saveTrackingEnabled } from './settings'
-import { getStorageValue } from './storage'
-
 const scrimbaHosts = new Set(['scrimba.com', 'v2.scrimba.com'])
+
+type CurrentScrimbaPage = {
+  sessionId: string
+  url: string
+  title: string | null
+  startedAt: string
+  isActive: boolean
+  isIdle: boolean
+  lastActiveAt: string | null
+  lastInactiveAt: string | null
+  lastActivityAt: string | null
+  lastIdleAt: string | null
+} | null
+
+type DailyActivity = {
+  date: string
+  activeSeconds: number
+  goalSeconds: number
+  goalCompleted: boolean
+  sessions: unknown[]
+}
+
+type UserSettings = {
+  dailyGoalSeconds: number
+  idleTimeoutSeconds: number
+  trackingEnabled: boolean
+  timezone: string
+}
+
+const defaultUserSettings: UserSettings = {
+  dailyGoalSeconds: 30 * 60,
+  idleTimeoutSeconds: 2 * 60,
+  trackingEnabled: true,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+}
+
+const getLocalDateKey = (value: Date = new Date()): string =>
+  [
+    value.getFullYear(),
+    String(value.getMonth() + 1).padStart(2, '0'),
+    String(value.getDate()).padStart(2, '0'),
+  ].join('-')
+
+const getStorageValue = <Value>(
+  key: string,
+  fallbackValue: Value,
+): Promise<Value> =>
+  new Promise((resolve) => {
+    try {
+      chrome.storage.local.get(key, (items) => {
+        if (chrome.runtime.lastError) {
+          resolve(fallbackValue)
+          return
+        }
+
+        resolve((items[key] as Value | undefined) ?? fallbackValue)
+      })
+    } catch {
+      resolve(fallbackValue)
+    }
+  })
+
+const setStorageValue = <Value>(key: string, value: Value): Promise<boolean> =>
+  new Promise((resolve) => {
+    try {
+      chrome.storage.local.set({ [key]: value }, () => {
+        resolve(!chrome.runtime.lastError)
+      })
+    } catch {
+      resolve(false)
+    }
+  })
+
+const getUserSettings = async (): Promise<UserSettings> => ({
+  ...defaultUserSettings,
+  ...(await getStorageValue<Partial<UserSettings>>('userSettings', {})),
+})
+
+const getCurrentScrimbaPage = (): Promise<CurrentScrimbaPage> =>
+  getStorageValue<CurrentScrimbaPage>('currentScrimbaPage', null)
+
+const getTodayActivity = async (
+  settings: UserSettings,
+): Promise<DailyActivity> => {
+  const today = getLocalDateKey()
+  const activities = await getStorageValue<Record<string, DailyActivity>>(
+    'dailyActivities',
+    {},
+  )
+
+  return activities[today] ?? {
+    date: today,
+    activeSeconds: 0,
+    goalSeconds: settings.dailyGoalSeconds,
+    goalCompleted: false,
+    sessions: [],
+  }
+}
+
+const saveTrackingEnabled = async (
+  trackingEnabled: boolean,
+): Promise<UserSettings> => {
+  const settings = await getUserSettings()
+  const nextSettings = {
+    ...settings,
+    trackingEnabled,
+  }
+
+  await setStorageValue('userSettings', nextSettings)
+
+  return nextSettings
+}
+
+const secondsToMinutes = (seconds: number): number =>
+  Math.floor(Math.max(0, seconds) / 60)
+
+const formatActiveTime = (seconds: number): string => {
+  const normalizedSeconds = Math.max(0, Math.floor(seconds))
+  const minutes = secondsToMinutes(normalizedSeconds)
+
+  if (normalizedSeconds > 0 && minutes === 0) {
+    return '<1m'
+  }
+
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  return remainingMinutes > 0
+    ? `${hours}h ${remainingMinutes}m`
+    : `${hours}h`
+}
+
+const getGoalProgress = (
+  todayActivity: DailyActivity,
+  settings: UserSettings,
+) => {
+  const activeSeconds = todayActivity.activeSeconds
+  const goalSeconds = todayActivity.goalSeconds || settings.dailyGoalSeconds
+  const isComplete =
+    todayActivity.goalCompleted || (goalSeconds > 0 && activeSeconds >= goalSeconds)
+  const percentage =
+    goalSeconds > 0 ? Math.floor((activeSeconds / goalSeconds) * 100) : 0
+
+  return {
+    activeSeconds,
+    goalSeconds,
+    isComplete,
+    remainingSeconds: Math.max(0, goalSeconds - activeSeconds),
+    percentage,
+    visualPercentage: Math.min(100, percentage),
+  }
+}
 
 const isScrimbaUrl = (value: string): boolean => {
   try {
@@ -640,11 +791,11 @@ if (
 
     isWidgetRefreshing = true
 
-    void Promise.all([
-      getUserSettings(),
-      getActivityForDate(new Date()),
-      getStorageValue('currentScrimbaPage'),
-    ]).then(([settings, todayActivity, currentScrimbaPage]) => {
+    void getUserSettings().then((settings) => Promise.all([
+      Promise.resolve(settings),
+      getTodayActivity(settings),
+      getCurrentScrimbaPage(),
+    ])).then(([settings, todayActivity, currentScrimbaPage]) => {
       const progress = getGoalProgress(todayActivity, settings)
       const trackingPaused = !settings.trackingEnabled
       const isCurrentPageSession =
