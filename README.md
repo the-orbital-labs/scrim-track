@@ -10,6 +10,16 @@ Install ScrimTrack from the Chrome Web Store:
 
 https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedemaaidh
 
+## Screenshots
+
+| Scrimba tracking popup | Activity dashboard |
+| --- | --- |
+| ![ScrimTrack popup tracking active on Scrimba](public/screenshot-1.png) | ![ScrimTrack activity dashboard with learning calendar and stats](public/screenshot-2.png) |
+
+| Progress and path setup | Settings and local data |
+| --- | --- |
+| ![ScrimTrack weekly recap, monthly recap, and path setup](public/screenshot-3.png) | ![ScrimTrack daily goal, idle timeout, privacy, and local data controls](public/screenshot-4.png) |
+
 ## Features
 
 * Track active Scrimba learning time
