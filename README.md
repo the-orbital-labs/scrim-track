@@ -19,6 +19,42 @@ https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedema
 * Estimate your finish date based on your current pace
 * Store learning data locally in your browser
 
+## Roadmap
+
+ScrimTrack is built milestone by milestone, with a focus on simple local-first tracking for Scrimba learners.
+
+Planned improvements include:
+
+* Refine active learning-time detection for Scrimba lessons
+* Improve daily goal and streak visibility
+* Add clearer weekly and monthly progress summaries
+* Polish the contribution heatmap experience
+* Improve manual path setup and finish-date projection
+* Add local data export and reset controls
+* Improve accessibility and extension UI polish
+
+ScrimTrack will stay local-first and focused on Scrimba learning. Backend services, accounts, AI features, and social features are not part of the roadmap.
+
+## Feedback and Contributions
+
+Feedback, bug reports, and focused contributions are welcome.
+
+Good issues or pull requests include:
+
+* Bugs in Scrimba time tracking
+* Incorrect daily, weekly, monthly, streak, or heatmap calculations
+* UI or accessibility improvements
+* Documentation fixes
+* Small improvements that support the roadmap above
+
+Before contributing:
+
+* Keep the extension local-first.
+* Track only `https://scrimba.com/*` and `https://v2.scrimba.com/*`.
+* Keep Chrome permissions minimal.
+* Avoid unrelated features, backend services, authentication, AI features, and social features.
+* Run `npm run build` before opening a pull request.
+
 ## Privacy
 
 ScrimTrack is privacy-friendly by default.
