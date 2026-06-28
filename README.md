@@ -1,14 +1,25 @@
 # ScrimTrack
 
-ScrimTrack is an unofficial open-source Chrome extension for Scrimba learners.
+ScrimTrack is an unofficial open-source Chrome extension for Scrimba learners who want a simple way to track focused learning time.
 
-It tracks your active learning time on Scrimba, shows daily/weekly/monthly progress, builds streaks, displays a GitHub-style learning heatmap, and estimates your finish date based on your pace.
+It tracks active Scrimba time, shows daily/weekly/monthly progress, builds streaks, displays a GitHub-style learning heatmap, and estimates your finish date based on your pace.
 
 ## Install
 
 Install ScrimTrack from the Chrome Web Store:
 
-https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedemaaidh
+[Add ScrimTrack to Chrome](https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedemaaidh)
+
+## What It Does
+
+ScrimTrack helps you understand your Scrimba learning habits without accounts, syncing, or a backend server.
+
+* Tracks active learning time only on supported Scrimba URLs
+* Shows today, this week, this month, current streak, longest streak, and all-time totals
+* Displays learning activity in a contribution-style heatmap
+* Lets you set a daily learning goal
+* Lets you set up a learning path manually and estimate a finish date
+* Exports local data as JSON and supports local reset controls
 
 ## Screenshots
 
@@ -20,14 +31,35 @@ https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedema
 | --- | --- |
 | ![ScrimTrack weekly recap, monthly recap, and path setup](public/screenshot-3.png) | ![ScrimTrack daily goal, idle timeout, privacy, and local data controls](public/screenshot-4.png) |
 
-## Features
+## Privacy
 
-* Track active Scrimba learning time
-* View daily, weekly, and monthly progress
-* Build learning streaks
-* See your activity in a GitHub-style heatmap
-* Estimate your finish date based on your current pace
-* Store learning data locally in your browser
+ScrimTrack is privacy-friendly by default.
+
+* Learning data stays on your device in `chrome.storage.local`.
+* ScrimTrack does not require accounts or authentication.
+* ScrimTrack does not send learning data to a backend server.
+* External analytics are not enabled by default.
+* ScrimTrack only tracks activity on supported Scrimba URLs.
+
+## Permissions
+
+ScrimTrack requests limited permissions:
+
+* `storage` is used to save activity, sessions, streaks, settings, and path projection data locally.
+* Scrimba host access is limited to:
+
+  * `https://scrimba.com/*`
+  * `https://v2.scrimba.com/*`
+
+ScrimTrack does **not** request access to:
+
+* browsing history
+* tabs
+* bookmarks
+* cookies
+* `webRequest`
+* `browsingData`
+* `<all_urls>`
 
 ## Roadmap
 
@@ -65,40 +97,10 @@ Before contributing:
 * Avoid unrelated features, backend services, authentication, AI features, and social features.
 * Run `npm run build` before opening a pull request.
 
-## Privacy
-
-ScrimTrack is privacy-friendly by default.
-
-* Learning data stays on your device in `chrome.storage.local`.
-* ScrimTrack does not require accounts or authentication.
-* ScrimTrack does not send learning data to a backend server.
-* External analytics are not enabled by default.
-* ScrimTrack only tracks activity on supported Scrimba URLs.
-
-## Permissions
-
-ScrimTrack requests limited permissions:
-
-* `storage` is used to save activity, sessions, streaks, settings, and path projection data locally.
-* Scrimba host access is limited to:
-
-  * `https://scrimba.com/*`
-  * `https://v2.scrimba.com/*`
-
-ScrimTrack does **not** request access to:
-
-* browsing history
-* tabs
-* bookmarks
-* cookies
-* `webRequest`
-* `browsingData`
-* `<all_urls>`
-
 ## Disclaimer
 
 ScrimTrack is an unofficial project and is not affiliated with, endorsed by, or sponsored by Scrimba.
 
 ## License
 
-MIT
+ScrimTrack is released under the [MIT License](LICENSE).
