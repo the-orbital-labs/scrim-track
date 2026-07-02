@@ -6,6 +6,8 @@ It tracks active Scrimba time, shows daily/weekly/monthly progress, builds strea
 
 ## Install
 
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/the-orbital-labs/scrim-track/blob/main/LICENSE)
+
 Install ScrimTrack from the Chrome Web Store:
 
 [Add ScrimTrack to Chrome](https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedemaaidh)
