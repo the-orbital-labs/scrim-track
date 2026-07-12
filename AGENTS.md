@@ -2,7 +2,7 @@
 
 ## Project
 
-Scrimba Learning Tracker is a Chrome Extension Manifest V3 app that tracks active learning time on Scrimba, shows daily/weekly/monthly stats, builds streaks, displays a GitHub-style heatmap, and estimates finish date based on pace.
+ScrimTrack is a Chrome Extension Manifest V3 app that tracks active learning time on Scrimba, shows daily/weekly/monthly stats, builds streaks, displays a heatmap, and estimates finish date based on pace.
 
 ## Stack
 
