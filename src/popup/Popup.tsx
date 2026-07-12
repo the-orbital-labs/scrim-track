@@ -441,6 +441,40 @@ function Popup() {
         </section>
       ) : null}
 
+      <section className="mini-heatmap" aria-label="Recent activity heatmap">
+        <div className="mini-heatmap-header">
+          <span>Last 12 weeks</span>
+          <span>Less More</span>
+        </div>
+        <div className="mini-heatmap-grid" role="img" aria-label="Daily Scrimba activity for the last 12 weeks">
+          {heatmapGrid?.weeks.map((week) => (
+            <div className="mini-heatmap-week" key={week.startDate}>
+              {week.days.map((day) => (
+                <span
+                  key={day.date}
+                  tabIndex={0}
+                  className={[
+                    'mini-heatmap-cell',
+                    'heatmap-tooltip-trigger',
+                    `heatmap-level-${day.intensity}`,
+                    day.isToday ? 'is-today' : '',
+                    day.isFuture ? 'is-future' : '',
+                  ].filter(Boolean).join(' ')}
+                  title={getHeatmapTooltipText(day)}
+                  aria-label={getHeatmapTooltipText(day)}
+                >
+                  <span className="heatmap-tooltip" role="tooltip">
+                    {getHeatmapTooltipLines(day).map((line) => (
+                      <span key={line}>{line}</span>
+                    ))}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section
         className={[
           'popup-today-card',
@@ -505,40 +539,6 @@ function Popup() {
           <strong>{weeklyActiveTime}</strong>
           <small>{weeklyAverageText}</small>
         </article>
-      </section>
-
-      <section className="mini-heatmap" aria-label="Recent activity heatmap">
-        <div className="mini-heatmap-header">
-          <span>Last 12 weeks</span>
-          <span>Less More</span>
-        </div>
-        <div className="mini-heatmap-grid" role="img" aria-label="Daily Scrimba activity for the last 12 weeks">
-          {heatmapGrid?.weeks.map((week) => (
-            <div className="mini-heatmap-week" key={week.startDate}>
-              {week.days.map((day) => (
-                <span
-                  key={day.date}
-                  tabIndex={0}
-                  className={[
-                    'mini-heatmap-cell',
-                    'heatmap-tooltip-trigger',
-                    `heatmap-level-${day.intensity}`,
-                    day.isToday ? 'is-today' : '',
-                    day.isFuture ? 'is-future' : '',
-                  ].filter(Boolean).join(' ')}
-                  title={getHeatmapTooltipText(day)}
-                  aria-label={getHeatmapTooltipText(day)}
-                >
-                  <span className="heatmap-tooltip" role="tooltip">
-                    {getHeatmapTooltipLines(day).map((line) => (
-                      <span key={line}>{line}</span>
-                    ))}
-                  </span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="popup-projection" aria-label="Pace projection">
