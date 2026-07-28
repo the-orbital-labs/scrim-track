@@ -1300,6 +1300,11 @@
   cursor: default;
 }
 
+.heatmap-tooltip-trigger:hover,
+.heatmap-tooltip-trigger:focus-visible {
+  z-index: 20;
+}
+
 .heatmap-tooltip-trigger:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -1334,6 +1339,13 @@
 .heatmap-tooltip-trigger:hover .heatmap-tooltip,
 .heatmap-tooltip-trigger:focus-visible .heatmap-tooltip {
   display: block;
+}
+
+.dashboard-heatmap-week
+  > .heatmap-tooltip-trigger:nth-child(-n + 3)
+  .heatmap-tooltip {
+  top: calc(100% + 8px);
+  bottom: auto;
 }
 
 .dashboard-heatmap-cell.is-today {
