@@ -194,6 +194,8 @@ const isRuntimeResponse = (response: unknown): response is RuntimeResponse =>
   typeof response === 'object' && response !== null
 
 const widgetHostId = 'scrimtrack-page-widget'
+const dashboardTabId = 'scrimtrack-dashboard-tab'
+const embeddedDashboardHostId = 'scrimtrack-embedded-dashboard'
 
 if (
   isScrimbaUrl(window.location.href) &&
@@ -217,6 +219,11 @@ if (
   let isTrackingActive = false
   let isTrackingIdle = false
   let isWidgetRefreshing = false
+  let dashboardIntegrationObserver: MutationObserver | null = null
+  let dashboardIntegrationFrameId: number | null = null
+  let dashboardBoundsFrameId: number | null = null
+  let dashboardTabBar: HTMLElement | null = null
+  let isEmbeddedDashboardOpen = false
 
   document.documentElement.dataset.scrimbaLearningTracker = 'active'
 
@@ -459,6 +466,278 @@ if (
     } catch {
       window.open(chrome.runtime.getURL('dashboard.html'), '_blank', 'noopener')
     }
+  }
+
+  const normalizeElementText = (element: Element): string =>
+    (element.textContent ?? '').replace(/\s+/g, ' ').trim()
+
+  const getIssuesTab = (): HTMLElement | null => {
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>('a, button, [role="tab"]'),
+    ).filter((candidate) => {
+      if (
+        candidate.id === dashboardTabId ||
+        candidate.closest(`#${widgetHostId}, #${embeddedDashboardHostId}`)
+      ) {
+        return false
+      }
+
+      const label = normalizeElementText(candidate)
+      const bounds = candidate.getBoundingClientRect()
+
+      return (
+        /^Issues(?:\s*\d+)?$/i.test(label) &&
+        bounds.width > 0 &&
+        bounds.width < 240 &&
+        bounds.height > 0 &&
+        bounds.height < 80
+      )
+    })
+
+    return candidates.sort((first, second) => {
+      const score = (candidate: HTMLElement) => {
+        const surroundingText = normalizeElementText(
+          candidate.parentElement ?? candidate,
+        )
+
+        return (
+          (candidate.getAttribute('role') === 'tab' ? 10 : 0) +
+          (/Recent/i.test(surroundingText) ? 3 : 0) +
+          (/Completed/i.test(surroundingText) ? 3 : 0) +
+          (/Discover|Started/i.test(surroundingText) ? 2 : 0)
+        )
+      }
+
+      return score(second) - score(first)
+    })[0] ?? null
+  }
+
+  const getTabBar = (tab: HTMLElement): HTMLElement => {
+    const minimumWideWidth = Math.min(640, window.innerWidth * 0.5)
+    let candidate = tab.parentElement
+    let widestCompactParent = candidate ?? tab
+
+    for (let depth = 0; candidate && depth < 5; depth += 1) {
+      const bounds = candidate.getBoundingClientRect()
+      const widestBounds = widestCompactParent.getBoundingClientRect()
+
+      if (bounds.height <= 100 && bounds.width > widestBounds.width) {
+        widestCompactParent = candidate
+      }
+
+      if (bounds.height <= 100 && bounds.width >= minimumWideWidth) {
+        return candidate
+      }
+
+      candidate = candidate.parentElement
+    }
+
+    return widestCompactParent
+  }
+
+  const getEmbeddedDashboardHost = (): HTMLElement | null =>
+    document.getElementById(embeddedDashboardHostId)
+
+  const updateDashboardTabState = () => {
+    const tab = document.getElementById(dashboardTabId)
+
+    if (!(tab instanceof HTMLElement)) {
+      return
+    }
+
+    tab.setAttribute('aria-selected', String(isEmbeddedDashboardOpen))
+    tab.toggleAttribute('aria-current', isEmbeddedDashboardOpen)
+
+    if (isEmbeddedDashboardOpen) {
+      tab.style.setProperty('border-bottom', '2px solid #2563eb', 'important')
+      tab.style.setProperty('color', '#1d4ed8', 'important')
+      tab.style.setProperty('font-weight', '600', 'important')
+      return
+    }
+
+    tab.style.removeProperty('border-bottom')
+    tab.style.removeProperty('color')
+    tab.style.removeProperty('font-weight')
+  }
+
+  const updateEmbeddedDashboardBounds = () => {
+    dashboardBoundsFrameId = null
+
+    const host = getEmbeddedDashboardHost()
+    const tab = document.getElementById(dashboardTabId)
+
+    if (!host || !(tab instanceof HTMLElement)) {
+      return
+    }
+
+    dashboardTabBar = getTabBar(tab)
+    const bounds = dashboardTabBar.getBoundingClientRect()
+    const top = Math.max(0, Math.min(window.innerHeight - 160, bounds.bottom))
+    const left = Math.max(0, bounds.left)
+    const right = Math.min(window.innerWidth, bounds.right)
+
+    host.style.setProperty('top', `${Math.round(top)}px`, 'important')
+    host.style.setProperty('left', `${Math.round(left)}px`, 'important')
+    host.style.setProperty(
+      'width',
+      `${Math.max(320, Math.round(right - left))}px`,
+      'important',
+    )
+    host.style.setProperty(
+      'height',
+      `${Math.max(160, Math.round(window.innerHeight - top))}px`,
+      'important',
+    )
+  }
+
+  const scheduleEmbeddedDashboardBoundsUpdate = () => {
+    if (!isEmbeddedDashboardOpen || dashboardBoundsFrameId !== null) {
+      return
+    }
+
+    dashboardBoundsFrameId = window.requestAnimationFrame(
+      updateEmbeddedDashboardBounds,
+    )
+  }
+
+  const hideEmbeddedDashboard = () => {
+    isEmbeddedDashboardOpen = false
+    getEmbeddedDashboardHost()?.remove()
+    updateDashboardTabState()
+  }
+
+  const showEmbeddedDashboard = () => {
+    isEmbeddedDashboardOpen = true
+
+    if (!getEmbeddedDashboardHost()) {
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const style = document.createElement('style')
+      const frame = document.createElement('iframe')
+
+      host.id = embeddedDashboardHostId
+      host.setAttribute('aria-label', 'ScrimTrack dashboard')
+      style.textContent = `
+        :host {
+          all: initial !important;
+          position: fixed !important;
+          display: block !important;
+          z-index: 2147483000 !important;
+          overflow: hidden !important;
+          border-top: 1px solid rgba(22, 33, 52, 0.16) !important;
+          background: #f7f8fb !important;
+          box-shadow: 0 -6px 18px rgba(12, 18, 31, 0.06) !important;
+          color-scheme: light dark;
+        }
+
+        iframe {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border: 0;
+          background: #f7f8fb;
+        }
+      `
+      frame.src = chrome.runtime.getURL('dashboard.html?embedded=1')
+      frame.title = 'ScrimTrack dashboard'
+      frame.setAttribute('allow', 'clipboard-write')
+
+      shadow.append(style, frame)
+      document.documentElement.append(host)
+    }
+
+    updateDashboardTabState()
+    scheduleEmbeddedDashboardBoundsUpdate()
+  }
+
+  const createDashboardTab = (issuesTab: HTMLElement): HTMLElement => {
+    const tab = issuesTab.cloneNode(false) as HTMLElement
+
+    Array.from(tab.attributes).forEach((attribute) => {
+      if (attribute.name !== 'class' && attribute.name !== 'role') {
+        tab.removeAttribute(attribute.name)
+      }
+    })
+
+    tab.id = dashboardTabId
+    tab.textContent = 'ScrimTrack'
+    tab.setAttribute('aria-label', 'Open ScrimTrack dashboard')
+    tab.setAttribute('aria-selected', 'false')
+    tab.setAttribute('data-scrimtrack-dashboard-tab', '')
+
+    if (tab instanceof HTMLAnchorElement) {
+      tab.href = '#scrimtrack-dashboard'
+    } else if (tab instanceof HTMLButtonElement) {
+      tab.type = 'button'
+    } else {
+      tab.setAttribute('role', 'tab')
+      tab.tabIndex = 0
+    }
+
+    tab.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      showEmbeddedDashboard()
+    }, { signal: listenerController.signal })
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      showEmbeddedDashboard()
+    }, { signal: listenerController.signal })
+
+    return tab
+  }
+
+  const ensureDashboardIntegration = () => {
+    dashboardIntegrationFrameId = null
+
+    const issuesTab = getIssuesTab()
+
+    if (!issuesTab) {
+      if (isEmbeddedDashboardOpen) {
+        hideEmbeddedDashboard()
+      }
+      return
+    }
+
+    let dashboardTab = document.getElementById(dashboardTabId)
+
+    if (!(dashboardTab instanceof HTMLElement)) {
+      dashboardTab = createDashboardTab(issuesTab)
+    }
+
+    if (issuesTab.nextElementSibling !== dashboardTab) {
+      issuesTab.insertAdjacentElement('afterend', dashboardTab)
+    }
+
+    dashboardTabBar = getTabBar(dashboardTab)
+    updateDashboardTabState()
+    scheduleEmbeddedDashboardBoundsUpdate()
+  }
+
+  const scheduleDashboardIntegration = () => {
+    if (dashboardIntegrationFrameId !== null) {
+      return
+    }
+
+    dashboardIntegrationFrameId = window.requestAnimationFrame(
+      ensureDashboardIntegration,
+    )
+  }
+
+  const startDashboardIntegration = () => {
+    scheduleDashboardIntegration()
+    dashboardIntegrationObserver = new MutationObserver(
+      scheduleDashboardIntegration,
+    )
+    dashboardIntegrationObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    })
   }
 
   const createWidget = () => {
@@ -867,7 +1146,19 @@ if (
   const cleanup = () => {
     void stopActiveSession(false)
     stopWidgetRefresh()
+    dashboardIntegrationObserver?.disconnect()
+
+    if (dashboardIntegrationFrameId !== null) {
+      window.cancelAnimationFrame(dashboardIntegrationFrameId)
+    }
+
+    if (dashboardBoundsFrameId !== null) {
+      window.cancelAnimationFrame(dashboardBoundsFrameId)
+    }
+
     listenerController.abort()
+    getEmbeddedDashboardHost()?.remove()
+    document.getElementById(dashboardTabId)?.remove()
     widget?.host.remove()
   }
 
@@ -886,15 +1177,47 @@ if (
     signal: listenerController.signal,
   }
 
+  const closeDashboardForScrimbaNavigation = (event: MouseEvent) => {
+    if (!isEmbeddedDashboardOpen || !(event.target instanceof Element)) {
+      return
+    }
+
+    const navigationControl = event.target.closest<HTMLElement>(
+      'a[href], button, [role="tab"]',
+    )
+
+    if (
+      !navigationControl ||
+      navigationControl.id === dashboardTabId ||
+      navigationControl.closest(`#${widgetHostId}, #${embeddedDashboardHostId}`)
+    ) {
+      return
+    }
+
+    if (
+      navigationControl instanceof HTMLAnchorElement ||
+      dashboardTabBar?.contains(navigationControl)
+    ) {
+      hideEmbeddedDashboard()
+    }
+  }
+
   startActiveSession()
   refreshWidget()
+  startDashboardIntegration()
   widgetRefreshIntervalId = window.setInterval(refreshWidget, 5_000)
 
   window.addEventListener('pagehide', cleanup, listenerOptions)
   window.addEventListener('focus', syncTrackingState, listenerOptions)
+  window.addEventListener('resize', scheduleEmbeddedDashboardBoundsUpdate, listenerOptions)
   window.addEventListener('blur', () => {
     window.setTimeout(syncTrackingState, 0)
   }, listenerOptions)
+  document.addEventListener(
+    'click',
+    closeDashboardForScrimbaNavigation,
+    { capture: true, signal: listenerController.signal },
+  )
   document.addEventListener('visibilitychange', syncTrackingState, listenerOptions)
   document.addEventListener(
     'mousemove',
@@ -909,7 +1232,10 @@ if (
   )
   document.addEventListener(
     'scroll',
-    () => sendUserActivity('scroll'),
+    () => {
+      sendUserActivity('scroll')
+      scheduleEmbeddedDashboardBoundsUpdate()
+    },
     passiveListenerOptions,
   )
   document.addEventListener(

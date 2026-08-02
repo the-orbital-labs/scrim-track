@@ -30,6 +30,12 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dashboard.html"],
+      "matches": ["https://scrimba.com/*", "https://v2.scrimba.com/*"]
+    }
+  ],
   "host_permissions": ["https://scrimba.com/*", "https://v2.scrimba.com/*"],
   "options_page": "dashboard.html",
   "permissions": ["storage"]
