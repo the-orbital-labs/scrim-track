@@ -35,6 +35,22 @@ const defaultUserSettings: UserSettings = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 }
 
+const isExtensionContextValid = (): boolean => {
+  try {
+    return Boolean(chrome.runtime?.id)
+  } catch {
+    return false
+  }
+}
+
+const getExtensionUrl = (path: string): string | null => {
+  try {
+    return isExtensionContextValid() ? chrome.runtime.getURL(path) : null
+  } catch {
+    return null
+  }
+}
+
 const getLocalDateKey = (value: Date = new Date()): string =>
   [
     value.getFullYear(),
@@ -48,8 +64,18 @@ const getStorageValue = <Value>(
 ): Promise<Value> =>
   new Promise((resolve) => {
     try {
+      if (!isExtensionContextValid()) {
+        resolve(fallbackValue)
+        return
+      }
+
       chrome.storage.local.get(key, (items) => {
-        if (chrome.runtime.lastError) {
+        try {
+          if (chrome.runtime.lastError) {
+            resolve(fallbackValue)
+            return
+          }
+        } catch {
           resolve(fallbackValue)
           return
         }
@@ -64,8 +90,17 @@ const getStorageValue = <Value>(
 const setStorageValue = <Value>(key: string, value: Value): Promise<boolean> =>
   new Promise((resolve) => {
     try {
+      if (!isExtensionContextValid()) {
+        resolve(false)
+        return
+      }
+
       chrome.storage.local.set({ [key]: value }, () => {
-        resolve(!chrome.runtime.lastError)
+        try {
+          resolve(!chrome.runtime.lastError)
+        } catch {
+          resolve(false)
+        }
       })
     } catch {
       resolve(false)
@@ -224,8 +259,38 @@ if (
   let dashboardBoundsFrameId: number | null = null
   let dashboardTabBar: HTMLElement | null = null
   let isEmbeddedDashboardOpen = false
+  const hiddenScrimbaContent: Array<{
+    display: string
+    displayPriority: string
+    element: HTMLElement
+  }> = []
 
   document.documentElement.dataset.scrimbaLearningTracker = 'active'
+
+  const sendRuntimeMessage = (
+    message: unknown,
+    callback?: (response: unknown) => void,
+  ): boolean => {
+    try {
+      if (!isExtensionContextValid()) {
+        return false
+      }
+
+      chrome.runtime.sendMessage(message, (response) => {
+        try {
+          void chrome.runtime.lastError
+        } catch {
+          callback?.(undefined)
+          return
+        }
+
+        callback?.(response)
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
 
   const isPageActive = () =>
     document.visibilityState === 'visible' && document.hasFocus()
@@ -296,7 +361,7 @@ if (
     const sessionId = currentSessionId
     lastAccountedAt = recordedAt
 
-    chrome.runtime.sendMessage(
+    const wasSent = sendRuntimeMessage(
       {
         type: 'scrimba:activity-pulse',
         sessionId,
@@ -307,6 +372,10 @@ if (
       },
       (response) => handleTickResponse(sessionId, response),
     )
+
+    if (!wasSent) {
+      markSessionStopped(sessionId)
+    }
   }
 
   const startTrackingTick = () => {
@@ -338,7 +407,7 @@ if (
     isTrackingActive = true
     isTrackingIdle = false
 
-    chrome.runtime.sendMessage(
+    const wasSent = sendRuntimeMessage(
       {
         type: 'scrimba:tracking-started',
         sessionId,
@@ -349,8 +418,6 @@ if (
         lastActivityAt: new Date(lastActivityAt).toISOString(),
       },
       (response) => {
-        void chrome.runtime.lastError
-
         if (
           currentSessionId !== sessionId ||
           !isRuntimeResponse(response) ||
@@ -363,6 +430,10 @@ if (
         startTrackingTick()
       },
     )
+
+    if (!wasSent) {
+      markSessionStopped(sessionId)
+    }
   }
 
   const stopActiveSession = (rememberForGrace = true): Promise<void> => {
@@ -393,7 +464,7 @@ if (
         : null
 
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage(
+      const wasSent = sendRuntimeMessage(
         {
           type: 'scrimba:tracking-stopped',
           sessionId,
@@ -403,10 +474,13 @@ if (
           stoppedAt: new Date(stoppedAt).toISOString(),
         },
         () => {
-          void chrome.runtime.lastError
           resolve()
         },
       )
+
+      if (!wasSent) {
+        resolve()
+      }
     })
   }
 
@@ -431,7 +505,7 @@ if (
     const sessionId = currentSessionId
     lastActivityMessageAt = now
 
-    chrome.runtime.sendMessage(
+    sendRuntimeMessage(
       {
         type: 'scrimba:user-activity',
         sessionId,
@@ -441,8 +515,6 @@ if (
         activityAt: new Date(now).toISOString(),
       },
       (response) => {
-        void chrome.runtime.lastError
-
         if (
           currentSessionId === sessionId &&
           isRuntimeResponse(response) &&
@@ -456,15 +528,22 @@ if (
   }
 
   const openDashboard = () => {
+    const dashboardUrl = getExtensionUrl('dashboard.html')
+
+    if (!dashboardUrl) {
+      window.alert('ScrimTrack was updated. Refresh this Scrimba tab to reconnect it.')
+      return
+    }
+
     try {
       if (chrome.runtime.openOptionsPage) {
         chrome.runtime.openOptionsPage()
         return
       }
 
-      window.open(chrome.runtime.getURL('dashboard.html'), '_blank', 'noopener')
+      window.open(dashboardUrl, '_blank', 'noopener')
     } catch {
-      window.open(chrome.runtime.getURL('dashboard.html'), '_blank', 'noopener')
+      window.alert('ScrimTrack could not open. Refresh this Scrimba tab and try again.')
     }
   }
 
@@ -538,6 +617,96 @@ if (
   const getEmbeddedDashboardHost = (): HTMLElement | null =>
     document.getElementById(embeddedDashboardHostId)
 
+  const restoreScrimbaContent = () => {
+    hiddenScrimbaContent.splice(0).forEach((entry) => {
+      entry.element.style.setProperty(
+        'display',
+        entry.display,
+        entry.displayPriority,
+      )
+
+      if (!entry.display) {
+        entry.element.style.removeProperty('display')
+      }
+    })
+  }
+
+  const getDashboardPlacement = (tabBar: HTMLElement) => {
+    const tabBarBounds = tabBar.getBoundingClientRect()
+    let anchor = tabBar
+
+    for (let depth = 0; depth < 7; depth += 1) {
+      const parent = anchor.parentElement
+
+      if (!parent || parent === document.body || parent === document.documentElement) {
+        break
+      }
+
+      const followingSiblings = Array.from(parent.children).slice(
+        Array.from(parent.children).indexOf(anchor) + 1,
+      )
+      const hasMainContentSibling = followingSiblings.some((sibling) => {
+        if (!(sibling instanceof HTMLElement)) {
+          return false
+        }
+
+        const bounds = sibling.getBoundingClientRect()
+        const horizontalOverlap = Math.max(
+          0,
+          Math.min(bounds.right, tabBarBounds.right) -
+            Math.max(bounds.left, tabBarBounds.left),
+        )
+
+        return (
+          bounds.height > 40 &&
+          bounds.width > 280 &&
+          bounds.top >= tabBarBounds.bottom - 12 &&
+          horizontalOverlap > Math.min(240, tabBarBounds.width * 0.4)
+        )
+      })
+
+      if (hasMainContentSibling) {
+        return { anchor, parent }
+      }
+
+      anchor = parent
+    }
+
+    return {
+      anchor: tabBar,
+      parent: tabBar.parentElement ?? document.body,
+    }
+  }
+
+  const hideScrimbaContentAfter = (
+    anchor: HTMLElement,
+    host: HTMLElement,
+  ) => {
+    let sibling = host.nextElementSibling
+
+    while (sibling) {
+      const nextSibling = sibling.nextElementSibling
+
+      if (
+        sibling instanceof HTMLElement &&
+        sibling !== anchor &&
+        sibling.id !== widgetHostId
+      ) {
+        if (!hiddenScrimbaContent.some((entry) => entry.element === sibling)) {
+          hiddenScrimbaContent.push({
+            display: sibling.style.getPropertyValue('display'),
+            displayPriority: sibling.style.getPropertyPriority('display'),
+            element: sibling,
+          })
+        }
+
+        sibling.style.setProperty('display', 'none', 'important')
+      }
+
+      sibling = nextSibling
+    }
+  }
+
   const updateDashboardTabState = () => {
     const tab = document.getElementById(dashboardTabId)
 
@@ -560,34 +729,62 @@ if (
     tab.style.removeProperty('font-weight')
   }
 
+  const applyEmbeddedDashboardBounds = (
+    host: HTMLElement,
+    tab: HTMLElement,
+  ) => {
+    dashboardTabBar = getTabBar(tab)
+    const bounds = dashboardTabBar.getBoundingClientRect()
+    const placement = getDashboardPlacement(dashboardTabBar)
+    const parentBounds = placement.parent.getBoundingClientRect()
+    const width = Math.max(320, Math.round(bounds.width))
+    const height = Math.max(480, Math.round(window.innerHeight - bounds.bottom))
+    const leftOffset = Math.max(0, Math.round(bounds.left - parentBounds.left))
+    const frame = host.shadowRoot?.querySelector<HTMLIFrameElement>('iframe')
+
+    if (
+      host.parentElement !== placement.parent ||
+      host.previousElementSibling !== placement.anchor
+    ) {
+      placement.anchor.insertAdjacentElement('afterend', host)
+    }
+
+    hideScrimbaContentAfter(placement.anchor, host)
+
+    host.style.setProperty('position', 'relative', 'important')
+    host.style.setProperty('display', 'block', 'important')
+    host.style.setProperty('z-index', '1', 'important')
+    host.style.setProperty('inset', 'auto', 'important')
+    host.style.setProperty('margin', `0 0 0 ${leftOffset}px`, 'important')
+    host.style.setProperty('padding', '0', 'important')
+    host.style.setProperty('border', '0', 'important')
+    host.style.setProperty('max-width', 'none', 'important')
+    host.style.setProperty('max-height', 'none', 'important')
+    host.style.setProperty('overflow', 'hidden', 'important')
+    host.style.setProperty('background', '#f7f8fb', 'important')
+    host.style.setProperty('width', `${width}px`, 'important')
+    host.style.setProperty('height', `${height}px`, 'important')
+    host.style.setProperty('transform', 'none', 'important')
+
+    if (frame) {
+      frame.width = String(width)
+      frame.height = String(height)
+      frame.style.setProperty('width', `${width}px`, 'important')
+      frame.style.setProperty('height', `${height}px`, 'important')
+    }
+  }
+
   const updateEmbeddedDashboardBounds = () => {
     dashboardBoundsFrameId = null
 
     const host = getEmbeddedDashboardHost()
     const tab = document.getElementById(dashboardTabId)
 
-    if (!host || !(tab instanceof HTMLElement)) {
+    if (!host || !tab) {
       return
     }
 
-    dashboardTabBar = getTabBar(tab)
-    const bounds = dashboardTabBar.getBoundingClientRect()
-    const top = Math.max(0, Math.min(window.innerHeight - 160, bounds.bottom))
-    const left = Math.max(0, bounds.left)
-    const right = Math.min(window.innerWidth, bounds.right)
-
-    host.style.setProperty('top', `${Math.round(top)}px`, 'important')
-    host.style.setProperty('left', `${Math.round(left)}px`, 'important')
-    host.style.setProperty(
-      'width',
-      `${Math.max(320, Math.round(right - left))}px`,
-      'important',
-    )
-    host.style.setProperty(
-      'height',
-      `${Math.max(160, Math.round(window.innerHeight - top))}px`,
-      'important',
-    )
+    applyEmbeddedDashboardBounds(host, tab)
   }
 
   const scheduleEmbeddedDashboardBoundsUpdate = () => {
@@ -603,10 +800,18 @@ if (
   const hideEmbeddedDashboard = () => {
     isEmbeddedDashboardOpen = false
     getEmbeddedDashboardHost()?.remove()
+    restoreScrimbaContent()
     updateDashboardTabState()
   }
 
   const showEmbeddedDashboard = () => {
+    const dashboardUrl = getExtensionUrl('dashboard.html?embedded=1')
+
+    if (!dashboardUrl) {
+      window.alert('ScrimTrack was updated. Refresh this Scrimba tab to reconnect it.')
+      return
+    }
+
     isEmbeddedDashboardOpen = true
 
     if (!getEmbeddedDashboardHost()) {
@@ -620,9 +825,12 @@ if (
       style.textContent = `
         :host {
           all: initial !important;
-          position: fixed !important;
+          position: relative !important;
           display: block !important;
-          z-index: 2147483000 !important;
+          z-index: 1 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border: 0 !important;
           overflow: hidden !important;
           border-top: 1px solid rgba(22, 33, 52, 0.16) !important;
           background: #f7f8fb !important;
@@ -638,16 +846,26 @@ if (
           background: #f7f8fb;
         }
       `
-      frame.src = chrome.runtime.getURL('dashboard.html?embedded=1')
+      frame.src = dashboardUrl
       frame.title = 'ScrimTrack dashboard'
       frame.setAttribute('allow', 'clipboard-write')
+      frame.style.setProperty('display', 'block', 'important')
+      frame.style.setProperty('width', '100%', 'important')
+      frame.style.setProperty('height', '100%', 'important')
+      frame.style.setProperty('border', '0', 'important')
+      frame.style.setProperty('background', '#f7f8fb', 'important')
 
       shadow.append(style, frame)
       document.documentElement.append(host)
+      const tab = document.getElementById(dashboardTabId)
+
+      if (tab) {
+        applyEmbeddedDashboardBounds(host, tab)
+      }
     }
 
     updateDashboardTabState()
-    scheduleEmbeddedDashboardBoundsUpdate()
+    updateEmbeddedDashboardBounds()
   }
 
   const createDashboardTab = (issuesTab: HTMLElement): HTMLElement => {
@@ -1158,6 +1376,7 @@ if (
 
     listenerController.abort()
     getEmbeddedDashboardHost()?.remove()
+    restoreScrimbaContent()
     document.getElementById(dashboardTabId)?.remove()
     widget?.host.remove()
   }

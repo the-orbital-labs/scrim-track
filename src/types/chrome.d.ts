@@ -1,5 +1,6 @@
 declare const chrome: {
   runtime: {
+    id: string
     getManifest: () => { version: string }
     getURL: (path: string) => string
     lastError?: { message?: string }
