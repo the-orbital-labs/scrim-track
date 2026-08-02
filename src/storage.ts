@@ -145,16 +145,33 @@ const withDefaultStorageValue = <Key extends StorageKey>(
   return value
 }
 
-const logStorageError = (operation: string): boolean => {
-  const error = chrome.runtime.lastError
-
-  if (!error) {
+const isExtensionContextValid = (): boolean => {
+  try {
+    return Boolean(chrome.runtime?.id)
+  } catch {
     return false
   }
+}
 
-  console.warn(`Storage ${operation} failed: ${error.message ?? 'Unknown error'}`)
+const isExtensionContextInvalidatedError = (error: unknown): boolean =>
+  error instanceof Error && /extension context invalidated/i.test(error.message)
 
-  return true
+const logStorageError = (operation: string): boolean => {
+  try {
+    const error = chrome.runtime.lastError
+
+    if (!error) {
+      return false
+    }
+
+    if (!/extension context invalidated/i.test(error.message ?? '')) {
+      console.warn(`Storage ${operation} failed: ${error.message ?? 'Unknown error'}`)
+    }
+
+    return true
+  } catch {
+    return true
+  }
 }
 
 export const getStorageValue = <Key extends StorageKey>(
@@ -162,6 +179,11 @@ export const getStorageValue = <Key extends StorageKey>(
 ): Promise<StorageSchema[Key]> =>
   new Promise((resolve) => {
     try {
+      if (!isExtensionContextValid()) {
+        resolve(getDefaultStorageValue(key))
+        return
+      }
+
       chrome.storage.local.get(key, (items) => {
         if (logStorageError(`read for ${key}`)) {
           resolve(getDefaultStorageValue(key))
@@ -173,7 +195,9 @@ export const getStorageValue = <Key extends StorageKey>(
         resolve(withDefaultStorageValue(key, value))
       })
     } catch (error) {
-      console.warn(`Storage read for ${key} failed:`, error)
+      if (!isExtensionContextInvalidatedError(error)) {
+        console.warn(`Storage read for ${key} failed:`, error)
+      }
       resolve(getDefaultStorageValue(key))
     }
   })
@@ -184,11 +208,18 @@ export const setStorageValue = <Key extends StorageKey>(
 ): Promise<boolean> =>
   new Promise((resolve) => {
     try {
+      if (!isExtensionContextValid()) {
+        resolve(false)
+        return
+      }
+
       chrome.storage.local.set({ [key]: value }, () => {
         resolve(!logStorageError(`write for ${key}`))
       })
     } catch (error) {
-      console.warn(`Storage write for ${key} failed:`, error)
+      if (!isExtensionContextInvalidatedError(error)) {
+        console.warn(`Storage write for ${key} failed:`, error)
+      }
       resolve(false)
     }
   })
