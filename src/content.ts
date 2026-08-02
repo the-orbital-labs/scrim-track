@@ -28,6 +28,11 @@ type UserSettings = {
   timezone: string
 }
 
+type WidgetPosition = {
+  x: number
+  y: number
+}
+
 const defaultUserSettings: UserSettings = {
   dailyGoalSeconds: 30 * 60,
   idleTimeoutSeconds: 2 * 60,
@@ -231,6 +236,8 @@ const isRuntimeResponse = (response: unknown): response is RuntimeResponse =>
 const widgetHostId = 'scrimtrack-page-widget'
 const dashboardTabId = 'scrimtrack-dashboard-tab'
 const embeddedDashboardHostId = 'scrimtrack-embedded-dashboard'
+const widgetPositionStorageKey = 'widgetPosition'
+const widgetViewportMargin = 16
 
 if (
   isScrimbaUrl(window.location.href) &&
@@ -1007,6 +1014,9 @@ if (
           align-items: center;
           justify-content: space-between;
           gap: 10px;
+          cursor: grab;
+          touch-action: none;
+          user-select: none;
         }
 
         .brand {
@@ -1087,6 +1097,14 @@ if (
           display: none;
           align-items: center;
           gap: 8px;
+          cursor: grab;
+          touch-action: none;
+          user-select: none;
+        }
+
+        .widget.is-dragging .header,
+        .widget.is-dragging .collapsed-line {
+          cursor: grabbing;
         }
 
         .widget.is-collapsed .header,
@@ -1202,7 +1220,7 @@ if (
       </style>
 
       <aside class="widget" aria-label="ScrimTrack page widget">
-        <div class="collapsed-line">
+        <div class="collapsed-line" data-drag-handle>
           <span class="mark" aria-hidden="true">ST</span>
           <span class="status">
             <span class="dot" data-status-dot></span>
@@ -1211,7 +1229,7 @@ if (
           <button class="icon-button" type="button" title="Expand" aria-label="Expand" data-expand>+</button>
         </div>
 
-        <div class="header">
+        <div class="header" data-drag-handle>
           <span class="brand">
             <span class="mark" aria-hidden="true">ST</span>
             ScrimTrack
@@ -1272,13 +1290,143 @@ if (
       openDashboard: shadow.querySelector<HTMLButtonElement>('[data-open-dashboard]'),
       collapse: shadow.querySelector<HTMLButtonElement>('[data-collapse]'),
       expand: shadow.querySelector<HTMLButtonElement>('[data-expand]'),
+      dragHandles: shadow.querySelectorAll<HTMLElement>('[data-drag-handle]'),
     }
   }
 
   const widget = createWidget()
 
+  const getConstrainedWidgetPosition = (x: number, y: number): WidgetPosition => {
+    if (!widget) {
+      return { x, y }
+    }
+
+    const bounds = widget.host.getBoundingClientRect()
+    const maxX = Math.max(
+      widgetViewportMargin,
+      window.innerWidth - bounds.width - widgetViewportMargin,
+    )
+    const maxY = Math.max(
+      widgetViewportMargin,
+      window.innerHeight - bounds.height - widgetViewportMargin,
+    )
+
+    return {
+      x: Math.min(Math.max(widgetViewportMargin, x), maxX),
+      y: Math.min(Math.max(widgetViewportMargin, y), maxY),
+    }
+  }
+
+  const applyWidgetPosition = (position: WidgetPosition) => {
+    if (!widget) {
+      return
+    }
+
+    const constrainedPosition = getConstrainedWidgetPosition(
+      position.x,
+      position.y,
+    )
+
+    widget.host.style.setProperty('left', `${constrainedPosition.x}px`)
+    widget.host.style.setProperty('top', `${constrainedPosition.y}px`)
+    widget.host.style.setProperty('right', 'auto')
+    widget.host.style.setProperty('bottom', 'auto')
+  }
+
+  const constrainWidgetToViewport = () => {
+    if (!widget || !widget.host.style.left || !widget.host.style.top) {
+      return
+    }
+
+    const bounds = widget.host.getBoundingClientRect()
+    applyWidgetPosition({ x: bounds.left, y: bounds.top })
+  }
+
+  const persistWidgetPosition = () => {
+    if (!widget) {
+      return
+    }
+
+    const bounds = widget.host.getBoundingClientRect()
+    void setStorageValue<WidgetPosition>(widgetPositionStorageKey, {
+      x: bounds.left,
+      y: bounds.top,
+    })
+  }
+
+  if (widget) {
+    void getStorageValue<WidgetPosition | null>(
+      widgetPositionStorageKey,
+      null,
+    ).then((position) => {
+      if (
+        position &&
+        Number.isFinite(position.x) &&
+        Number.isFinite(position.y)
+      ) {
+        applyWidgetPosition(position)
+      }
+    })
+
+    let draggedPointerId: number | null = null
+    let pointerOffsetX = 0
+    let pointerOffsetY = 0
+
+    const finishWidgetDrag = (event: PointerEvent) => {
+      if (draggedPointerId !== event.pointerId) {
+        return
+      }
+
+      draggedPointerId = null
+      widget.widget?.classList.remove('is-dragging')
+      persistWidgetPosition()
+    }
+
+    widget.dragHandles.forEach((dragHandle) => {
+      dragHandle.addEventListener('pointerdown', (event) => {
+        if (
+          event.button !== 0 ||
+          (event.target instanceof Element && event.target.closest('button'))
+        ) {
+          return
+        }
+
+        const bounds = widget.host.getBoundingClientRect()
+        draggedPointerId = event.pointerId
+        pointerOffsetX = event.clientX - bounds.left
+        pointerOffsetY = event.clientY - bounds.top
+        widget.widget?.classList.add('is-dragging')
+        dragHandle.setPointerCapture(event.pointerId)
+        event.preventDefault()
+      }, { signal: listenerController.signal })
+
+      dragHandle.addEventListener('pointermove', (event) => {
+        if (draggedPointerId !== event.pointerId) {
+          return
+        }
+
+        applyWidgetPosition({
+          x: event.clientX - pointerOffsetX,
+          y: event.clientY - pointerOffsetY,
+        })
+      }, { signal: listenerController.signal })
+
+      dragHandle.addEventListener('pointerup', finishWidgetDrag, {
+        signal: listenerController.signal,
+      })
+      dragHandle.addEventListener('pointercancel', finishWidgetDrag, {
+        signal: listenerController.signal,
+      })
+    })
+
+    window.addEventListener('resize', constrainWidgetToViewport, {
+      signal: listenerController.signal,
+    })
+  }
+
   const setWidgetCollapsed = (collapsed: boolean) => {
     widget?.widget?.classList.toggle('is-collapsed', collapsed)
+    window.requestAnimationFrame(constrainWidgetToViewport)
   }
 
   const refreshWidget = () => {
