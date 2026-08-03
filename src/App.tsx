@@ -183,6 +183,14 @@ function App() {
   const [exportStatusText, setExportStatusText] = useState<string | null>(null)
   const [resetStatusText, setResetStatusText] = useState<string | null>(null)
 
+  const syncProjection = (projection: PathProjection) => {
+    setFinishDateText(getFinishEstimateText(projection, 'full'))
+    setFinishDateLabel(projection.finishDateLabel ?? 'Not estimated yet')
+    setAveragePaceSeconds(projection.averageDailySeconds)
+    setCompletedHours(projection.completedHours)
+    setRemainingHours(projection.remainingHours)
+  }
+
   const refreshTodayActivity = () => {
     void Promise.all([
       getActivityForDate(new Date()),
@@ -357,14 +365,6 @@ function App() {
     void getPathProjection().then((projection) => {
       syncProjection(projection)
     })
-  }
-
-  const syncProjection = (projection: PathProjection) => {
-    setFinishDateText(getFinishEstimateText(projection, 'full'))
-    setFinishDateLabel(projection.finishDateLabel ?? 'Not estimated yet')
-    setAveragePaceSeconds(projection.averageDailySeconds)
-    setCompletedHours(projection.completedHours)
-    setRemainingHours(projection.remainingHours)
   }
 
   const syncPathProgress = (nextPathProgress: PathProgress) => {
