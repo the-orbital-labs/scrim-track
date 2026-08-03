@@ -14,6 +14,23 @@ Install ScrimTrack from the Chrome Web Store:
 
 See the [changelog](CHANGELOG.md) for release history and notable changes.
 
+## Local Development
+
+To build and install ScrimTrack locally:
+
+```bash
+git clone https://github.com/the-orbital-labs/scrim-track.git
+cd scrim-track
+npm install
+npm run build
+```
+
+Then open `chrome://extensions` in Chrome, enable **Developer mode**, choose
+**Load unpacked**, and select the generated `dist` directory.
+
+Run `npm run build` again after making changes, then reload the extension from
+`chrome://extensions`.
+
 ## What It Does
 
 ScrimTrack helps you understand your Scrimba learning habits without accounts, syncing, or a backend server.
@@ -76,12 +93,10 @@ ScrimTrack is built milestone by milestone, with a focus on simple local-first t
 Planned improvements include:
 
 * Refine active learning-time detection for Scrimba lessons
-* Improve daily goal and streak visibility
-* Add clearer weekly and monthly progress summaries
-* Polish the contribution heatmap experience
-* Improve manual path setup and finish-date projection
-* Add local data export and reset controls
-* Improve accessibility and extension UI polish
+* Improve the embedded dashboard and floating tracker's usability
+* Make daily goals, streaks, and progress summaries easier to understand
+* Polish the contribution heatmap and finish-date projection experience
+* Improve accessibility and extension UI consistency
 
 ScrimTrack will stay local-first and focused on Scrimba learning. Backend services, accounts, AI features, and social features are not part of the roadmap.
 
