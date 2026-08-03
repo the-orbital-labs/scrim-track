@@ -14,23 +14,6 @@ Install ScrimTrack from the Chrome Web Store:
 
 See the [changelog](CHANGELOG.md) for release history and notable changes.
 
-## Local Development
-
-To build and install ScrimTrack locally:
-
-```bash
-git clone https://github.com/the-orbital-labs/scrim-track.git
-cd scrim-track
-npm install
-npm run build
-```
-
-Then open `chrome://extensions` in Chrome, enable **Developer mode**, choose
-**Load unpacked**, and select the generated `dist` directory.
-
-Run `npm run build` again after making changes, then reload the extension from
-`chrome://extensions`.
-
 ## What It Does
 
 ScrimTrack helps you understand your Scrimba learning habits without accounts, syncing, or a backend server.
@@ -119,6 +102,23 @@ Before contributing:
 * Keep Chrome permissions minimal.
 * Avoid unrelated features, backend services, authentication, AI features, and social features.
 * Run `npm run build` before opening a pull request.
+
+## Local Development
+
+To build and install ScrimTrack locally:
+
+```bash
+git clone https://github.com/the-orbital-labs/scrim-track.git
+cd scrim-track
+npm install
+npm run build
+```
+
+Then open `chrome://extensions` in Chrome, enable **Developer mode**, choose
+**Load unpacked**, and select the generated `dist` directory.
+
+Run `npm run build` again after making changes, then reload the extension from
+`chrome://extensions`.
 
 ## Disclaimer
 
