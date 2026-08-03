@@ -12,6 +12,8 @@ Install ScrimTrack from the Chrome Web Store:
 
 [Add ScrimTrack to Chrome](https://chromewebstore.google.com/detail/scrimtrack/akjmadgnfokenilllgienlgedemaaidh)
 
+See the [changelog](CHANGELOG.md) for release history and notable changes.
+
 ## What It Does
 
 ScrimTrack helps you understand your Scrimba learning habits without accounts, syncing, or a backend server.
