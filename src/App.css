@@ -1293,7 +1293,6 @@
   height: var(--heatmap-cell-size);
   border: 1px solid transparent;
   border-radius: 2px;
-  background: var(--heatmap-0);
 }
 
 .heatmap-tooltip-trigger {
