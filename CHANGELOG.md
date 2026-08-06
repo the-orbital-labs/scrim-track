@@ -7,6 +7,15 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-06
+
+### Fixed
+
+- Prevented the embedded dashboard from disappearing behind Scrimba content
+  while scrolling.
+- Restored the embedded dashboard automatically when Scrimba replaces its
+  surrounding page content.
+
 ## [0.2.1] - 2026-08-06
 
 ### Fixed
