@@ -712,7 +712,6 @@ function App() {
                             ? 'is-outside-selected-period'
                             : '',
                         ].filter(Boolean).join(' ')}
-                        title={getHeatmapTooltipText(day)}
                         aria-label={getHeatmapTooltipText(day)}
                       >
                         <span className="heatmap-tooltip" role="tooltip">

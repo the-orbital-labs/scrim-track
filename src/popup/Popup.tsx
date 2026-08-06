@@ -460,7 +460,6 @@ function Popup() {
                     day.isToday ? 'is-today' : '',
                     day.isFuture ? 'is-future' : '',
                   ].filter(Boolean).join(' ')}
-                  title={getHeatmapTooltipText(day)}
                   aria-label={getHeatmapTooltipText(day)}
                 >
                   <span className="heatmap-tooltip" role="tooltip">
