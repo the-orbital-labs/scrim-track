@@ -230,6 +230,11 @@ type RuntimeResponse = {
   trackingEnabled?: boolean
 }
 
+type DashboardPlacement = {
+  anchor: HTMLElement
+  parent: HTMLElement
+}
+
 const isRuntimeResponse = (response: unknown): response is RuntimeResponse =>
   typeof response === 'object' && response !== null
 
@@ -265,6 +270,7 @@ if (
   let dashboardIntegrationFrameId: number | null = null
   let dashboardBoundsFrameId: number | null = null
   let dashboardTabBar: HTMLElement | null = null
+  let dashboardPlacement: DashboardPlacement | null = null
   let isEmbeddedDashboardOpen = false
   const hiddenScrimbaContent: Array<{
     display: string
@@ -638,8 +644,9 @@ if (
     })
   }
 
-  const getDashboardPlacement = (tabBar: HTMLElement) => {
+  const getDashboardPlacement = (tabBar: HTMLElement): DashboardPlacement => {
     const tabBarBounds = tabBar.getBoundingClientRect()
+    const dashboardHost = getEmbeddedDashboardHost()
     let anchor = tabBar
 
     for (let depth = 0; depth < 7; depth += 1) {
@@ -653,7 +660,11 @@ if (
         Array.from(parent.children).indexOf(anchor) + 1,
       )
       const hasMainContentSibling = followingSiblings.some((sibling) => {
-        if (!(sibling instanceof HTMLElement)) {
+        if (
+          !(sibling instanceof HTMLElement) ||
+          sibling === dashboardHost ||
+          (dashboardHost !== null && sibling.contains(dashboardHost))
+        ) {
           return false
         }
 
@@ -683,6 +694,29 @@ if (
       anchor: tabBar,
       parent: tabBar.parentElement ?? document.body,
     }
+  }
+
+  const getStableDashboardPlacement = (
+    tabBar: HTMLElement,
+  ): DashboardPlacement => {
+    const currentPlacement = dashboardPlacement
+    const isCurrentPlacementValid =
+      currentPlacement !== null &&
+      currentPlacement.anchor.isConnected &&
+      currentPlacement.parent.isConnected &&
+      currentPlacement.anchor.parentElement === currentPlacement.parent &&
+      (currentPlacement.anchor === tabBar || currentPlacement.anchor.contains(tabBar))
+
+    if (isCurrentPlacementValid) {
+      return currentPlacement
+    }
+
+    if (currentPlacement !== null) {
+      restoreScrimbaContent()
+    }
+
+    dashboardPlacement = getDashboardPlacement(tabBar)
+    return dashboardPlacement
   }
 
   const hideScrimbaContentAfter = (
@@ -742,7 +776,7 @@ if (
   ) => {
     dashboardTabBar = getTabBar(tab)
     const bounds = dashboardTabBar.getBoundingClientRect()
-    const placement = getDashboardPlacement(dashboardTabBar)
+    const placement = getStableDashboardPlacement(dashboardTabBar)
     const parentBounds = placement.parent.getBoundingClientRect()
     const width = Math.max(320, Math.round(bounds.width))
     const height = Math.max(480, Math.round(window.innerHeight - bounds.bottom))
@@ -806,6 +840,7 @@ if (
 
   const hideEmbeddedDashboard = () => {
     isEmbeddedDashboardOpen = false
+    dashboardPlacement = null
     getEmbeddedDashboardHost()?.remove()
     restoreScrimbaContent()
     updateDashboardTabState()
@@ -941,6 +976,16 @@ if (
 
     dashboardTabBar = getTabBar(dashboardTab)
     updateDashboardTabState()
+
+    if (
+      isEmbeddedDashboardOpen &&
+      !getEmbeddedDashboardHost() &&
+      isExtensionContextValid()
+    ) {
+      showEmbeddedDashboard()
+      return
+    }
+
     scheduleEmbeddedDashboardBoundsUpdate()
   }
 
@@ -1599,10 +1644,7 @@ if (
   )
   document.addEventListener(
     'scroll',
-    () => {
-      sendUserActivity('scroll')
-      scheduleEmbeddedDashboardBoundsUpdate()
-    },
+    () => sendUserActivity('scroll'),
     passiveListenerOptions,
   )
   document.addEventListener(
